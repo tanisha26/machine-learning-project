@@ -1,0 +1,3449 @@
+---
+title: "Untitled"
+author: "CS5811"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+####################################################################### 
+
+# 1. Install/load packAges
+
+
+
+```{r}
+# Define the required packAge list to be installed and loaded
+
+packages_list <- c("dplyr" , "validate" , "Hmisc", "tidyverse",  "corrplot", "modeest", "ggplot2" , "ggmosaic" , "cluster" , "tree" , "randomForest", "fpc" , "neuralnet", "caret" , "ROCR" , "sampling" )
+
+# Define the install_load function to install and load all the required packAges
+install_load <- function(pack_list){
+  
+for (pck in pack_list){
+    if(!requireNamespace (pck, quietly = TRUE)){
+        install.packages(pck , dependencies =  TRUE)
+    }
+    library(pck , character.only = TRUE)
+                           
+}                                   
+}
+# Call the above function to download all the required packAges
+install_load(packages_list)
+
+```
+
+# 2. Dataset Description
+
+```{r}
+# Read the car_insurance_claim.csv file
+car_data  <- read.csv('car_insurance_claim.csv')
+
+```
+
+Metadata description:
+
+```{r}
+
+Description <- c(" Unique identifier for insurance policy", "Number of kids of the customer who are at the Age of driving.", "Date of Birth of the customer.", "Age of the customer.", 
+                 "Total kids the customer has.", "Years On Job (For how long the customer has been working).", "Income of the customer.",
+                 "Whether the customer is a single parent? (Yes/No).", "Customer's home value.", "Marital status of the customer, if married: Yes other: No.",
+                 "Gender of the customer (M/F).", "Educational level of the customer.", "Occupation of the customer.", "Daily travel time to work.",
+                 "Car used for Private/Commercial purpose.", "Customer's car value.", "Time In Force-period of time the policy is effective (Years).",  "Type of car.", 
+                 "Whether the customer owns a red car (yes/no).", "Total previous claim amount.", "Number of claims reported.", 
+                 "Whether the customer's driver license has been License_Revoked (Yes/No).", "Number of motor vehicle record points.", "Possible future claims",
+                 "Age of the customer's car.", "Whether a claim was filed (1/0).", " Urbanicity type ((Highly Urban/Urban)/(Highly Rural/Rural)).")
+Features <- colnames(car_data)
+
+# Data frame for car_insurance_df metadata
+metadata_df <-data.frame(Features,Description)
+metadata_df
+```
+
+```{r}
+#inspect the internal structure of the dataset
+str(car_data)
+```
+
+```{r}
+# Summary statistic report of the dataset's variables
+summary(car_data)
+```
+
+# 3. Data preparation and cleaning
+
+The name of the features aren't clear so we decided to manipulate the names to improve the readability.
+
+```{r}
+names(car_data) <- c("Id", "Kids_Drive", "Birth", "Age", "Kids_Home", "Year_at_Job", "Income" , "Single_Parent", "Home_Val", "Marital_Status" ,"Gender", "Education", "Occupation", "Travel_Time", "Car_Use", "Car_Value" , "Time_in_Force" , "Car_Type", "Red_Car", "Old_Claim" , "Claim_Freq", "License_Revoked","Vehicle_Record_Points", "Claim_Amount", "Car_Age", "Claim_Flag", "Urbanicity")
+str(car_data)
+```
+
+```{r}
+# Preview first 6 rows in the dataset
+head(car_data)
+# View last 6 rows in the dataset
+tail(car_data)
+```
+
+## 3.1 Data Quality Analysis
+
+### 1. Validity
+
+##### a) Data type
+
+```{r}
+# Function to convert character variables to numeric and remove'$' and ',' 
+
+convert_to_numeric <- function(column){
+  as.numeric(gsub("[\\$,]","",column))
+}
+```
+
+```{r}
+# convert to numeric.
+wrong_numeric_columns <- c("Income", "Home_Val", "Car_Value" , "Old_Claim" , "Claim_Amount")
+
+# Apply the above function
+car_data[wrong_numeric_columns] <- lapply(car_data[,wrong_numeric_columns], convert_to_numeric)
+
+# Ensure that the above variables are numeric now
+str(car_data)
+```
+
+```{r}
+# Define a function to convert all the categorical variable to factors
+convert_to_factor <- function(categorical_var){
+  as.factor(categorical_var)
+}
+```
+
+```{r}
+# The wrong categorical variables are:
+wrong_cat_vars <- c( "Id" ,"Gender", "Urbanicity", "Single_Parent", "Marital_Status", "Education", "Occupation", "Car_Use", "Car_Type", "Red_Car", "License_Revoked", "Claim_Flag")
+names(car_data)
+
+
+# Apply the defined function to convert to factors.
+car_data[wrong_cat_vars] <- lapply(car_data[wrong_cat_vars], convert_to_factor)
+# Check the levels for each categorical variable
+lapply(car_data[wrong_cat_vars], levels)
+
+# Check back the internal structure
+str(car_data)
+```
+
+##### b) Range
+
+-   'Kids_Drive' :
+
+```{r}
+# Kids_Home range
+range(car_data$Kids_Drive , na.rm = T)
+```
+
+-   'Age':
+
+```{r}
+# Range of Age
+range(car_data$Age , na.rm = T)
+
+```
+
+-   'Kids_Home' :
+
+```{r}
+# Range of Kids_Home
+range(car_data$Kids_Home , na.rm = T)
+
+```
+
+-   'Year_at_Job':
+
+```{r}
+# Range of Year_at_Job
+range(car_data$Year_at_Job , na.rm = T)
+
+
+```
+
+-   'Income' :
+
+```{r}
+# Range of Income
+range(car_data$Income , na.rm = T)
+
+```
+
+-   'Home_Val':
+
+```{r}
+# Home_Val Range
+range(car_data$Home_Val , na.rm = T)
+
+```
+
+-   'Travel_Time':
+
+```{r}
+# Range of Travel_Time
+range(car_data$Travel_Time , na.rm = T)
+
+```
+
+-   'Car_Value':
+
+```{r}
+# Range of Car_Value
+range(car_data$Car_Value , na.rm = T)
+
+```
+
+-   'Time_in_Force':
+
+```{r}
+# Range of Time_in_Force
+range(car_data$Time_in_Force , na.rm = T)
+```
+
+-   'Old_Claim':
+
+```{r}
+# Range of Old_Claim
+range(car_data$Old_Claim , na.rm = T)
+```
+
+-   'Claim_Freq':
+
+```{r}
+# Range of Claim_Freq
+range(car_data$Claim_Freq , na.rm = T)
+```
+
+-   'Vehicle_Record_Points':
+
+```{r}
+# According to https://www.automoblog.net/research/insurance/what-is-the-maximum-amount-of-points-allowed-on-your-drivers-license/, there is no max number of penalties
+range(car_data$Vehicle_Record_Points , na.rm = T)
+
+```
+
+-   'Claim_Amount':
+
+```{r}
+# Range of Claim_Amount
+range(car_data$Claim_Amount , na.rm = T)
+
+
+```
+
+-   'Car_Age':
+
+```{r}
+# Range of Car_Age
+range(car_data$Car_Age , na.rm = T)
+```
+
+##### c) Uniquness
+
+ID is the car insurance policy ID.
+It can be the same for many customers e.g., partners may have the same ID.Hence, Only entire duplicated rows will be deleted.
+
+```{r}
+# Entire unique rows
+unique_data <-unique(car_data)
+# 10301 entire unique rows
+dim(unique_data)
+```
+
+Output: number of entire unique rows = 10301 while the total number of rows in the dataset 10302
+
+```{r}
+# Calculate duplication percentage in the dataset
+Num_duplicated_rows <- nrow(car_data) - nrow( unique_data)
+PercentAge_Duplicated_R<- Num_duplicated_rows/nrow(car_data)  *100
+PercentAge_Duplicated_R
+```
+
+Output: 1% is the duplication percentage
+
+##### d) Set-membership constraint
+
+```{r}
+# To check the levels of the factor columns, we will reuse the previous defined vector of categorical variables wrong_cat_vars
+
+lapply(car_data[wrong_cat_vars] , levels)
+```
+
+Output: typo-error in Gender,Urbanicity, Marital_Status,Education,Occupation,Car_Type,Red_Car,Car_Use, Single_Parent, License_Revoked and Claim_Flag.
+
+##### e) Inferential integrity:
+
+There is inferential integrity between Birth and Age.So, Birth will be broken down into days, month,and year of Birth, then this year will be compared with Age to insure their consistency.
+Note that this dataset is dated back to 1999 especially in Oct since we noticed wrong Ages after using the following equation: 99- car_data$Birth_Year. So we use 98- car_data$Birth_Year to deal with the apparently wrong Ages.
+
+```{r}
+# Extract  the day of Birth from Birth 
+car_data$Birth_Day <- as.numeric(substring(car_data$Birth, first=1, last=2))
+
+# Extract  the month of Birth from Birth 
+car_data$Birth_Month <- substring(car_data$Birth, first= 3, last = 5)
+
+# Extract  the year of Birth from Birth 
+car_data$Birth_Year <- as.numeric(substring(car_data$Birth, first= 6, last = 7))
+
+# Display a table of true and false to check if the Age equals to 99 - year of Birth or not.
+table(car_data$Age ==  99- car_data$Birth_Year) 
+```
+
+We notice 1245 rows are with apparently wrong Age
+
+```{r}
+# Review the observations with wrong Age
+observation_wrong_Age <- subset(car_data, car_data$Age !=  99- car_data$Birth_Year )
+dim(observation_wrong_Age)
+```
+
+1245 rows are with apparently wrong Age
+
+```{r}
+# We notice all the wrong Ages were in NOV or DEC which means that this dataset is recommended to be created in Oct 1999.
+# Let's try to solve this problem 
+observation_adjust_Age <- subset(car_data, car_data$Age  ==  98- car_data$Birth_Year )
+dim(observation_adjust_Age) 
+```
+
+The number of rows (1245 ) after adjust the equation equlas to the number of observations which we thought they are wrong.
+Hence, car_data has no row with wrong Age.
+Both Birth and Age variables are consistent.
+
+### 2. Accuracy
+
+```{r}
+#'Car_Age' has implausible values such as -3 and zero.
+select(arrange(car_data, Car_Age), Car_Age )
+```
+
+### 3. Completeness:
+
+Our dataset is not complete as there is missing values in Age, Income, Home_Val, Car_Age and Year_at_Job.
+
+```{r}
+# To sum up the number of missing data in each column in the data frame
+colSums(is.na(car_data))
+```
+
+```{r}
+# proportion of NA in each variable
+proportion_NA_per_var <- apply(is.na(car_data), 2 , sum)/ dim(car_data)[1]
+
+# PercentAge of NA in each variable then round it up
+NA_PercentAge <- round(proportion_NA_per_var*100)
+
+# Rename the coulmns name to reflect the included data
+names(NA_PercentAge) <- paste0(names(NA_PercentAge), "_NA %")
+NA_PercentAge
+```
+
+Output: the percentage of missing values in the variables equal or less than 6%.
+
+## 3.2 Set business data rules
+
+```{r}
+# Define the rules for {validate} using the `validator()`
+
+quality_rules <- validator( ok.Id = is_unique(Id),
+                            ok.Kids_Drive= Kids_Drive>= 0,
+                            # driving Age is between 16 and 18 depends of the state in the USA
+                            ok.Age= Age >=16 ,
+                            # The Radford family in the UK has 22 kids
+                            ok.Kids_Home  = Kids_Home <= 22 & Kids_Home >=0 ,
+                            # Retired Age (start working at 16 and retired at 67, means the max of Year_at_Job = 51)
+                            ok.Year_at_Job        = Year_at_Job >= 0 & Year_at_Job <= 51,
+                            ok.Income     = Income  >=0 ,
+                            ok.Single_Parent    = is.element(Single_Parent    , c("No","Yes")),
+                            ok.Home_Val = Home_Val >=0 ,
+                            ok.Marital_Status    = is.element(Marital_Status    , c("No","Yes")),
+                            ok.Gender     = is.element(Gender     , c("M","F")),
+                            ok.Education  = is.element(Education , c("<High School","High School", "Bachelors", "Masters", "PhD")),
+                            ok.Occupation = is.element(Occupation, c("Student", "Clerical", "Doctor", "Lawyer", "Blue Collar",   "ManAger", "Professional", "Home Maker")),
+                            ok.Travel_Time  = Travel_Time  >=0,
+                            ok.Car_Use = is.element(Car_Use, c("Private", "Commercial")),
+                            ok.Car_Value = Car_Value >=0,
+                            ok.Time_in_Force = Time_in_Force >=0,
+                            ok.Car_Type = is.element(Car_Type,c("SUV","Minivan","Sports Car","Panel Truck", "Van","Pickup" )),
+                            ok.Red_Car = is.element(Red_Car, c("no", "yes")),
+                            ok.Old_Claim = Old_Claim >=0,
+                            # Assume the maximum previous claims is 10
+                            ok.Claim_Freq = Claim_Freq >=0,
+                            ok.License_Revoked = is.element(License_Revoked, c("No", "Yes")),
+                            # in the UK, Max points are 11
+                            ok.Vehicle_Record_Points = Vehicle_Record_Points >= 0 ,
+                            ok.Claim_Amount = Claim_Amount>=0,
+                            ok.Car_Age = Car_Age >= 0 ,
+                            ok.Claim_Flag = is.element(Claim_Flag, c("1","0")),
+                            ok.Urbanicity = is.element(Urbanicity, c("Highly Urban/ Urban", "Highly Rural/ Rural")),
+                            ok.Birth_Day = Birth_Day >=1 & Birth_Day <= 31,
+                            ok.Birth_Month = is.element(Birth_Month, c("JAN","FEB","MAR","APR","MAY","JUN", "JUL","AUG","SEP","OCT","NOV", "DEC")))
+
+#Apply business rules and define errors
+quality_check_output <- confront(car_data , quality_rules)
+
+# summaries the result in a table that shows items, passes, fails, error and warning
+summary(quality_check_output)
+
+# Visualize the summary table in a plot
+plot(quality_check_output,  xlab = "")
+```
+
+Output: 1- We notice that there are missing values in Year_at_Job, Income,Home_Val, AND Car_Age.
+2- There is also fails in Urbanicity, Id, Car_Type, Occupation, Marital_Status, Education and Gender.
+3- Previous exploration shows typo errors in all of the previous variables except Id which definitely has duplication.
+
+## 3.3 Handling Data Quality Issues
+
+### 3.3.1 Handling errors in Categorical variables levels:
+
+```{r}
+# A copy from the raw  dataset has been taken for data cleaning purpose.
+clean_car_dataset <- car_data
+```
+
+After investigating the data quality issues, we found that,some columns have typo errors in the form of z\_.
+Therefore, the following function is created to sort these errors in all the variables using less line of codes.
+
+```{r}
+clean_column_values <- function(column) {
+  as.factor(gsub("[z_]", "", column))
+}
+```
+
+```{r}
+# The categorical variables with wrong levels
+cat_var_wrong_levels <- c("Marital_Status","Gender","Education","Occupation","Car_Type","Urbanicity")
+clean_car_dataset[cat_var_wrong_levels] <-   lapply(clean_car_dataset[cat_var_wrong_levels],clean_column_values)                              # Sort the order of Education
+levels_order <- c("<High School" ,"High School" , "Bachelors" , "Masters", "PhD" )
+clean_car_dataset$Education <- factor(clean_car_dataset$Education, levels = levels_order, ordered = TRUE)
+# Ensure that the variables have the correct levels:
+lapply(clean_car_dataset[cat_var_wrong_levels],levels)
+```
+
+### 3.3.2 Handling missing values:
+
+```{r}
+# There are also 639 NA value in Car_Age
+table(is.na(clean_car_dataset$Car_Age))
+
+# Impute all NA values with the median value
+clean_car_dataset$Car_Age <- impute(clean_car_dataset$Car_Age , median)
+```
+
+```{r}
+# Many NA values in Home_Val, this might means the person doesn't own a home
+table(is.na(clean_car_dataset$Home_Val))
+clean_car_dataset[is.na(clean_car_dataset$Home_Val),]
+# impute NA with the median
+clean_car_dataset$Home_Val <- impute(clean_car_dataset$Home_Val , median)
+```
+
+```{r}
+#NA values in Year_at_Job might means the person is unemployed
+table(is.na(clean_car_dataset$Year_at_Job))
+# If Year_at_Job means the person not employed that mean Income might has the same problem, let's check
+tem_df <- clean_car_dataset[is.na(clean_car_dataset$Year_at_Job) & is.na(clean_car_dataset$Income)  , ]
+
+# There are 35 rows with Year_at_Job and Income are both NA.
+#We also can see in some case there are more NA in the same rows rather than Year_at_Job and Income
+dim(tem_df)
+# The above rows will be remove from the dataset
+clean_car_dataset <- subset (clean_car_dataset, !(is.na(clean_car_dataset$Year_at_Job) & is.na(clean_car_dataset$Income)))
+
+# Check back to ensure no rows with NA in both Year_at_Job and Income
+clean_car_dataset[is.na(clean_car_dataset$Year_at_Job) & is.na(clean_car_dataset$Income) , ]
+# The other NA in Year_at_Job will be impute with the median
+clean_car_dataset$Year_at_Job <- impute(clean_car_dataset$Year_at_Job , median)
+```
+
+After inspection, we found that Occupation has missing value in the form of blank text "" only connected with Masters and PhD categories of Education variable.
+So the missing values here most likely don't seem to mean the customers are not working or have no Occupation.They are suspicious so we decide to impute them with the mode value of occupation where Education is Master or PhD.
+
+```{r}
+# There are empty text level i.e., ""
+table(clean_car_dataset$Occupation)
+# Convert Occupation to character to ease solving the failure in its values
+clean_car_dataset$Occupation <- as.character(clean_car_dataset$Occupation)
+
+# Mode imputation will be used based on the most frequent Occupation level connected with Masters and PhD in Education variable.
+# So, subset the rows with Masters or PhD where Occupation is not ""
+occp_dataset <- subset(clean_car_dataset, clean_car_dataset$Occupation != "" & (clean_car_dataset$Education == "Masters" | clean_car_dataset$Education == "PhD"))
+
+# Frequency table for the previous subset
+frequency_table <- table(occp_dataset$Occupation)
+# Get the most frequent value
+max_freq <- max(frequency_table)
+
+# Get the level name of the most frequent value
+Occupation_mode <- names(frequency_table)[frequency_table == max_freq]
+Occupation_mode
+# Mode imoutation for the empty values using Occupation_mode 
+clean_car_dataset$Occupation[clean_car_dataset$Occupation == ""] <- Occupation_mode
+
+# Convert Occupation back to factor
+clean_car_dataset$Occupation<- as.factor(clean_car_dataset$Occupation)
+# Check Occupation's levels
+levels(clean_car_dataset$Occupation)
+```
+
+```{r}
+# Age has NA values
+table(is.na(clean_car_dataset$Age))
+
+
+```
+
+```{r}
+# We can extract the Age from the Birth column. Hence, the below defined function is defined:
+
+calculate_Age <-function(Birth_var){
+  
+  # Extract  the day of Birth from Birth 
+  Birth_Day <- as.numeric(substring(Birth_var, first=1, last=2))
+  # Extract  the month of Birth from Birth 
+  Birth_Month <- substring(Birth_var, first= 3, last = 5)
+  # Extract  the year of Birth from Birth 
+  Birth_Year <- as.numeric(substring(Birth_var, first= 6, last = 7))
+  if (Birth_Month !="NOV" & Birth_Month != "DEC"){ 
+    return (99- Birth_Year)
+  }
+  else{
+    
+    return (98- Birth_Year)
+  }
+}
+```
+
+```{r}
+# Subset the NA Age values
+df_na_Age <- clean_car_dataset[is.na(clean_car_dataset$Age),]
+# Apply calculate_Age function
+clean_car_dataset$Age[is.na(clean_car_dataset$Age)] <- sapply(df_na_Age$Birth, calculate_Age)
+# Check back that there is no NA values in Age
+table(is.na(clean_car_dataset$Age))
+```
+
+```{r}
+# Many NA values in Income
+table(is.na(clean_car_dataset$Income))
+# Impute Na using median
+clean_car_dataset$Income <- impute(clean_car_dataset$Income , median)
+
+```
+
+### 3.3.2 Handling duplication
+
+```{r}
+#ID is the car insurance policy Id
+#It can the same for many customers i.e., partners may have the same ID.Hence, Only entire duplicated rows will be deleted. 
+
+# Initial dimension of the dataset
+dim(clean_car_dataset)
+
+# Select only unique entire observations
+clean_car_dataset  <- unique(clean_car_dataset)
+
+# dimension of the dataset with unique Id
+dim(clean_car_dataset)
+# Output: one row was excluded since it is entirely duplicated
+```
+
+### 3.3.3 Detecting and Handling outliers:
+
+```{r}
+#Filter rows with implausible values of Car_Age 
+filter(clean_car_dataset ,Car_Age < 0 )
+# There is only one implausible value of Car_Age which is -3.
+# correct -3 to 3
+clean_car_dataset$Car_Age[clean_car_dataset$Car_Age == -3] <- 3
+
+```
+
+After using Birth to calculate the NA values in Age, new values might not right according to the validator rules.
+
+```{r}
+# Ensure all instances have valid Age.
+wrong_Age_obs <-  subset(clean_car_dataset, clean_car_dataset$Age< 16)
+wrong_Age_obs$Age
+```
+
+oops!
+all the calculated Ages are less than 16.
+Hence, they are incorrect and we will get a subset with only the correct Age.
+
+```{r}
+clean_car_dataset <- subset(clean_car_dataset, clean_car_dataset$Age >=16)
+```
+
+##3.4 Feature selection
+
+After using Birth to ensure the correctness of Age variable and since Age and Birth both give the same information, the Birth and the created variable from it i.e, Birth_Month and Birth_Day will be delete.
+
+```{r}
+clean_car_dataset <- subset(clean_car_dataset , select = - c(Birth ,Birth_Day, Birth_Month, Birth_Year) )
+```
+
+Id is also will be dropped since it is can be shared between partners or company which makes it not benefit for our analysis.
+
+```{r}
+clean_car_dataset <- subset(clean_car_dataset , select = - c(Id) )
+
+```
+
+## 3.4 Data Transformation
+
+```{r}
+# transform the continuous features using a min-max function
+# first define a MinMax function
+MinMax <- function(x){
+  tx <- (x - min(x)) / (max(x) - min(x))
+  return(tx)
+}
+# Specify the continuous variables to be transformed 
+con_vars <- c("Kids_Drive", "Age", "Kids_Home", "Year_at_Job", "Income", "Home_Val","Travel_Time", "Car_Value", "Time_in_Force",               "Old_Claim", "Claim_Freq","Vehicle_Record_Points", "Claim_Amount", "Car_Age")
+
+# Keep the original clean dataset and have a copy from it
+transformed_car_df <- clean_car_dataset
+
+# Apply the function to get a dataset with scaled variables 
+transformed_car_df [, con_vars] <- apply(clean_car_dataset[, con_vars] , 2 , MinMax)
+# Check the summary report again
+str(transformed_car_df)
+
+```
+
+# 4. Exploratory Data Analysis (EDA)
+
+**Univariate analysis:**
+
+      # A- Univariate analysis of continuous variables.
+      # B- Univariate analysis of categorical variables.  
+      
+
+**Bivariant analysis:**
+
+      #  A- Covariation analysis of two categorical variables (including the dependent variable i.e., Claim_Flag).
+      #  B- Covariation analysis for continuous variable and the categorical, independent variable(Claim_Flag)
+      
+
+**Multivariant analysis:**
+
+      #  A- Covariation analysis for continuous variables
+
+**Unsupervised learning:**
+
+      # A- Principle Component Analysis
+      # B- Clustering
+
+## 4.1 Univariate analysis
+
+### 4.1.1 Univariate analysis of continuous variables.
+
+Graphical and statistical analysis of Kids_Drive variable:
+
+```{r}
+# 1- Histogram and density plot of 
+ggplot(transformed_car_df, aes(x=Kids_Drive))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Kids_Drive Distribution")+xlab("Kids_Drive")+geom_density(alpha=0.2 , fill="blue")
+
+#2- Numerical analysis of Kids_Drive variable:
+summary(transformed_car_df$Kids_Drive)
+var(transformed_car_df$Kids_Drive)
+```
+
+Output: 1- The distribution is not normal since it is skewed to the right.
+2- Most of the customers don't have kids at the Age of driving.
+3- low variability in the variable
+
+Graphical and statistical analysis of Age variable:
+
+```{r}
+# 1- Histogram and density plot of Age variable
+ggplot(transformed_car_df, aes(x=Age))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Age Distribution")+xlab("Age")+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Age
+ggplot(transformed_car_df, aes(y=Age))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Age", y="Age")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Age variable:
+summary(transformed_car_df$Age)
+var(transformed_car_df$Age)
+```
+
+Output: 1- The distribution is normal.
+2- Low variability.
+
+Graphical and statistical analysis of Income variable:
+
+```{r}
+# 1- Histogram and density plot of Income variable
+ggplot(transformed_car_df, aes(x=Income))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Income Distribution")+xlab("Income")+geom_density(alpha=0.2 , fill="blue")
+
+
+# 2- Box plot will display the extreme observations at Income
+ggplot(transformed_car_df, aes(y=Income))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Income", y="Income")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# To adjust the distribution, log function is used
+ggplot(transformed_car_df, aes(y=log(Income)))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Income($k)", y="log(Income)")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Income variable:
+summary(transformed_car_df$Income)
+var(transformed_car_df$Income)
+```
+
+Output: 1- The distribution is not normal.It is skewed to the right.
+2- Income has a bunch of big values (outliers) which still plausible.
+3- low variability in the variable
+
+Graphical and statistical analysis of Kids_Home variable:
+
+```{r}
+# 1- Histogram and density plot of Kids_Home variable
+ggplot(transformed_car_df, aes(x=Kids_Home))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Kids_Home Distribution")+xlab("Kids_Home")+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Kids_Home 
+ggplot(transformed_car_df, aes(y=Kids_Home))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Kids_Home", y="Kids_Home")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Income variable:
+summary(transformed_car_df$Kids_Home)
+var(transformed_car_df$Kids_Home)
+```
+
+Output:The distribution is not normal.It is skewed to the right
+
+Graphical and statistical analysis of Year_at_Job variable:
+
+```{r}
+# 1- Histogram and density plot of Year_at_Job variable
+ggplot(transformed_car_df, aes(x=Year_at_Job))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Year_at_Job Distribution")+xlab("Year_at_Job")+geom_density(alpha=0.2 , fill="blue")+ scale_x_continuous(breaks=seq(0,25,2))
+
+# 2- Box plot will display the extreme observations at Year_at_Job
+ggplot(transformed_car_df, aes(y=Year_at_Job))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Year_at_Job", y="Year_at_Job")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Year_at_Job variable:
+summary(transformed_car_df$Year_at_Job)
+var(transformed_car_df$Year_at_Job)
+```
+
+Output: 1- The distribution is skewed to the left.
+2- Year_at_Job has a bunch of outliers but still plausible.
+
+Graphical and statistical analysis of Home_Val variable:
+
+```{r}
+# 1- Histogram and density plot of Home_Val.
+ggplot(transformed_car_df, aes(x=Home_Val))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Home_Val Distribution")+xlab("Home_Val")+geom_density(alpha=0.2 , fill="blue")
+
+# Using log to adjust the distribution and make the plot more readable.
+ggplot(transformed_car_df, aes(x=log(Home_Val)))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Home_Val Distribution")+xlab("log(Home_Val)") +geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Home_Val
+ggplot(transformed_car_df, aes(y=Home_Val))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Home_Val", y="Home_Va")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Home_Val variable:
+summary(transformed_car_df$Home_Val)
+var(transformed_car_df$Home_Val)
+```
+
+Output: 1- The distribution is skewed to the right.
+2- Home_Val has a bunch of outliers but still plausible.
+
+Graphical and statistical analysis of Travel_Time variable:
+
+```{r}
+# 1- Histogram and density plot of Travel_Time
+ggplot(transformed_car_df, aes(x=Travel_Time))+geom_histogram(aes(y=..density..),bins= 30,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Travel_Time (in minutes) Distribution")+xlab("Travel_Time (in minutes)")+geom_density(alpha=0.2 , fill="blue")+ scale_x_continuous(breaks=seq(0,150,10))
+
+# 2- Box plot will display the extreme observations at Travel_Time
+ggplot(transformed_car_df, aes(y=Travel_Time))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Travel_Time (in minutes)", y="Travel_Time (in minutes)")+ scale_y_continuous(breaks=seq(0,150,10))+ coord_flip()
+
+# 3- Numerical analysis of Travel_Time variable:
+summary(transformed_car_df$Travel_Time)
+var(transformed_car_df$Travel_Time)
+```
+
+Output: 1- The distribution is skewed little bit to the right.
+2- Travel_Time has a bunch of outliers which are plausible.
+
+Graphical and statistical analysis of Car_Value variable:
+
+```{r}
+# 1- Histogram and density plot of Car_Value variable
+ggplot(transformed_car_df, aes(x=Car_Value))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Car_Value Distribution")+xlab("Car_Value")+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Car_Value 
+ggplot(transformed_car_df, aes(y=Car_Value))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Car_Value", y="Car_Value")+ scale_y_continuous(n.breaks=20)+ coord_flip()
+
+# 3- Numerical analysis of Car_Value variable:
+summary(transformed_car_df$Car_Value)
+var(transformed_car_df$Car_Value)
+```
+
+Output: 1- The distribution is skewed to the right.
+2- Car_Value has a bunch of outliers values which still plausible.
+
+Graphical and statistical analysis of Time_in_Force variable:
+
+```{r}
+# 1- Histogram and density plot of Time_in_Force
+ggplot(transformed_car_df, aes(x=Time_in_Force))+geom_histogram(aes(y=..density..),bins= 30,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Time_in_Force Distribution")+xlab("Time_in_Force")+ scale_x_continuous(breaks=seq(0,30,5))+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Time_in_Force 
+ggplot(transformed_car_df, aes(y=Time_in_Force))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Time_in_Force", y="Time_in_Force")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Time_in_Force variable:
+summary(transformed_car_df$Time_in_Force)
+var(transformed_car_df$Time_in_Force)
+```
+
+Output: 1- The distribution is skewed to the right.
+2- Time_in_Force has a bunch of outliers value which still plausible.
+
+Graphical and statistical analysis of Old_Claim variable:
+
+```{r}
+# 1- Histogram and density plot of Old_Claim
+
+ggplot(transformed_car_df, aes(x=Old_Claim))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Old_Claim Distribution")+xlab("Old_Claim")+geom_density(alpha=0.2 , fill="blue")
+
+# Using log to adjust the distribution and make the plot more readable.
+ggplot(transformed_car_df, aes(x=log(Old_Claim)))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of log(Old_Claim) Distribution")+xlab("log(Old_Claim)")+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Old_Claim
+ggplot(transformed_car_df, aes(y=Old_Claim))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Old_Claim", y="Old_Claim")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+
+#Using log to adjust the distribution and make the plot more readable.
+
+ggplot(transformed_car_df, aes(y=log(Old_Claim)))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of log(Old_Claim)", y="log(Old_Claim)")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Old_Claim variable:
+summary(transformed_car_df$Old_Claim)
+var(transformed_car_df$Old_Claim)
+```
+
+Output: 1- The distribution is not normal.It is skewed to the right.
+2- Income has a bunch of outliers which are still plausible.
+
+Graphical and statistical analysis of Claim_Freq variable:
+
+```{r}
+# 1- Histogram and density plot of Claim_Freq
+ 
+ggplot(transformed_car_df, aes(x=Claim_Freq))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Claim_Freq Distribution")+xlab("Claim_Freq")+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Claim_Freq
+ggplot(transformed_car_df, aes(y=Claim_Freq))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Claim_Freq", y="Claim_Freq")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Old_Claim variable:
+summary(transformed_car_df$Claim_Freq)
+var(transformed_car_df$Claim_Freq)
+```
+
+Output: 1- The distribution is not normal.It is skewed to the right.
+2- Most of the customers haven't claim before.
+
+Graphical and statistical analysis of Vehicle_Record_Points variable:
+
+```{r}
+# 1- Histogram and density plot of Vehicle_Record_Points
+ 
+ggplot(transformed_car_df, aes(x=Vehicle_Record_Points))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw() +ggtitle("Histogram and Density Plot of Vehicle_Record_Points Distribution") +xlab("Vehicle_Record_Points")+ geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Vehicle_Record_Points
+ggplot(transformed_car_df, aes(y=Vehicle_Record_Points))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Vehicle_Record_Points", y="Vehicle_Record_Points")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Vehicle_Record_Points variable:
+summary(transformed_car_df$Vehicle_Record_Points)
+var(transformed_car_df$Vehicle_Record_Points)
+```
+
+Output: 1- The distribution is not normal.It is skewed to the right.
+2- Most of the customers don't have points on their licence.
+
+Graphical and statistical analysis of Claim_Amount variable:
+
+```{r}
+# 1- Histogram and density plot of Claim_Amount
+
+ggplot(transformed_car_df, aes(x=Claim_Amount))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw() +ggtitle("Histogram and Density Plot of Claim_Amount Distribution") +xlab("Claim_Amount")+ geom_density(alpha=0.2 , fill="blue")
+
+
+# log function has been used to adjust the distribution.
+ 
+ggplot(transformed_car_df, aes(x=log(Claim_Amount)))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw() +ggtitle("Histogram and Density Plot of Claim_Amount Distribution") +xlab("Claim_Amount")+ geom_density(alpha=0.2 , fill="blue")
+
+
+# 2- Box plot will display the extreme observations at Claim_Amount. 
+
+ggplot(transformed_car_df, aes(y=Claim_Amount))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Claim_Amount", y="Claim_Amount")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# Using Log function to adjust the distribution.
+
+ggplot(transformed_car_df, aes(y=log(Claim_Amount)))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Claim_Amount", y="Claim_Amount")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Claim_Amount variable:
+summary(transformed_car_df$Claim_Amount)
+var(transformed_car_df$Claim_Amount)
+```
+
+Output: 1- The distribution is not normal but using the log function adjusted the distribution.
+2- Variability in the variable = 0
+
+Claim_Amount is dependent variable on Claim_Flag which means that if the customer files a claim (Claim_Flag is 1), there will be a claim_Amount.Thus, Claim_Amount will be dropped from the dataset.
+
+```{r}
+transformed_car_df <- subset(transformed_car_df , select = -Claim_Amount )
+str(transformed_car_df)
+```
+
+Graphical and statistical analysis of Car_Age variable:
+
+```{r}
+# 1- Histogram and density plot of Car_Age
+ 
+ggplot(transformed_car_df, aes(x=Car_Age))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw() +ggtitle("Histogram and Density Plot of Car_Age Distribution") +xlab("Car_Age")+ geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Car_Age
+ggplot(transformed_car_df, aes(y=Car_Age))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Car_Age", y="Car_Age")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Car_Age variable:
+summary(transformed_car_df$Car_Age)
+var(transformed_car_df$Car_Age)
+```
+
+Output: 1- The distribution is not normal.It is skewed to the right 2- Most of the customers have new cars which might explain the big number of customers with zero Car_Age (in years).
+
+### 4.1.2 Univariate analysis of categorical variables
+
+Graphical and statistical analysis of Single_Parent variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Single_Parent
+ ggplot( transformed_car_df , aes(x=Single_Parent, fill=Single_Parent))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Single_Parent Bar chart" )+ xlab("Single_Parent")
+
+# 2- Numerical analysis for Single_Parent
+#Frequency count for the categories of Single_Parent
+table(transformed_car_df$Single_Parent)
+```
+
+Output: Most of the customers are not a single parent which mean that the car can be used by a busy family.
+
+Graphical and statistical analysis of Marital_Status variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Marital_Status
+
+ggplot( transformed_car_df , aes(x=Marital_Status,fill=Marital_Status))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Marital_Status Bar chart" )+ xlab("Marital_Status")
+
+# 2- Numerical analysis for Marital_Status
+#Frequency count for the categories of Marital_Status
+table(transformed_car_df$Marital_Status)
+```
+
+Output: Most of the customers are married.
+
+Graphical and statistical analysis of Gender variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Gender
+ggplot( transformed_car_df , aes(x=Gender, fill=Gender))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Gender Bar chart" )+ xlab("Gender")
+
+# 2- Numerical analysis for Gender
+#Frequency count for the categories of Gender
+table(transformed_car_df$Gender)
+```
+
+Output: Little bit more females than males in the dataset.
+
+Graphical and statistical analysis of Education variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Education
+ggplot( transformed_car_df , aes(x=Education, fill=Education))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Education Levels Bar Chart" )+ xlab("Education Levels")
+
+# 2- Numerical analysis for Education
+#Frequency count for the categories of Education
+table(transformed_car_df$Education)
+```
+
+Output: Most of the customers finished the high school stage in their Education.
+
+Graphical and statistical analysis of Occupation variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Occupation
+ggplot( transformed_car_df , aes(x=Occupation, fill=Occupation))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Occupation Bar chart" )+ xlab("Occupation")
+
+# 2- Numerical analysis for Occupation
+#Frequency count for the categories of Occupation
+table(transformed_car_df$Occupation)
+```
+
+Output: Most of the customers are working as blue collar.
+
+Graphical and statistical analysis of Car_Use variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Car_Use
+ggplot( transformed_car_df , aes(x=Car_Use, fill=Car_Use))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Car_Use Bar chart" )+ xlab("Car_Use")
+
+# 2- Numerical analysis for Car_Use
+#Frequency count for the categories of Car_Use
+table(transformed_car_df$Car_Use)
+```
+
+Output:The distribution is not normal.Most of the customers have commercial vehicles.
+
+Graphical and statistical analysis of Car_Type variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Car_Type
+ggplot( transformed_car_df , aes(x=Car_Type, fill=Car_Type))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Car_Type Bar chart" )+ xlab("Car_Type")
+
+# 2- Numerical analysis for Car_Type
+#Frequency count for the categories of Car_Type
+table(transformed_car_df$Car_Type)
+```
+
+Output:Most of the customers have SUV or Minivan vehicles.
+
+Graphical and statistical analysis of Red_Car variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Red_Car
+ggplot( transformed_car_df , aes(x=Red_Car, fill=Red_Car))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Red_Car Bar chart" )+ xlab("Red_Car")
+
+# 2- Numerical analysis for Red_Car
+#Frequency count for the categories of Red_Car
+table(transformed_car_df$Red_Car)
+```
+
+Output: Most of the customers have no red cars.
+
+Graphical and statistical analysis of License_Revoked variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of License_Revoked
+ggplot( transformed_car_df , aes(x=License_Revoked, fill=License_Revoked))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("License_Revoked Bar chart" )+ xlab("License_Revoked")
+
+# 2- Numerical analysis for License_Revoked
+#Frequency count for the categories of License_Revoked
+table(transformed_car_df$License_Revoked)
+```
+
+Output: Most of the customers didn't have a License_Revoked licence.
+
+Graphical and statistical analysis of Claim_Flag variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Claim_Flag
+
+ggplot( transformed_car_df , aes(x=Claim_Flag, fill=Claim_Flag))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Claim_Flag Bar chart" )+ xlab("Claim_Flag")
+
+# 2- Numerical analysis for Claim_Flag
+#Frequency count for the categories of Claim_Flag
+table(transformed_car_df$Claim_Flag)
+```
+
+Output: Most of the customers didn't claim.
+
+Graphical and statistical analysis of Urbanicity variable:
+
+```{r}
+ggplot( transformed_car_df , aes(x=Urbanicity, fill=Urbanicity))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Urbanicity Bar chart" )+ xlab("Urbanicity")
+
+#Frequency count for the categories of Urbanicity
+table(transformed_car_df$Urbanicity)
+```
+
+Output: The distribution is not normal.Most of the customers live in highly urban/urban areas.
+
+## 4.2 Bivariant Analysis
+
+### 4.2.1 Bivariant analysis of two categorical variables (including the dependent variable i.e., Claim_Flag).
+
+Graphical analysis of Claim_Flag and Single_Parent:
+
+```{r}
+# mosaic plot 
+ggplot(transformed_car_df) + geom_mosaic(aes(x = product(Claim_Flag), fill=Single_Parent)) +
+labs(title="Mosaic plot of Claim_Flag vs Single_Parent" , x="Claim_Flag", y="Single_Parent") + 
+theme_mosaic()
+```
+
+Output: co-parents are more in number both for claiming and not claiming for insurance than single parents.
+
+Contingency table for both Claim_Flag and Single_Parent:
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Single_Parent
+table(transformed_car_df$Claim_Flag, transformed_car_df$Single_Parent)
+```
+
+Output: Table shows that among claim filed and not filed customers co-parents are more in number than single parents.
+
+Statistical analysis of Claim_Flag and Single_Parent:
+
+```{r}
+# Chi Square Test for independency test.
+#H0:`Claim_Flag`and `Single_Parent` are independent.
+#H1:`Claim_Flag`and `Single_Parent` are dependent.
+chisq.test(transformed_car_df$Claim_Flag , transformed_car_df$Single_Parent)
+```
+
+Output: p-value is very less than 0.05, so we reject $H0$ which means Claim_Flag and Single_Parent are dependent.
+
+Graphical analysis of Claim_Flag and Marital_Status:
+
+```{r}
+# mosaic plot 
+ggplot(transformed_car_df) + 
+  geom_mosaic(aes(x = product(Claim_Flag), fill=Marital_Status)) + 
+  labs(title="Mosaic plot of Claim_Flag vs Marital_Status" , x="Claim_Flag", y="Marital_Status" ) +
+  theme_mosaic()
+```
+
+Output: Married customers claim a file less frequent than unmarried customers, may be because married people are more careful while driving.
+
+Contingency table for both Claim_Flag and Marital_Status:
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Marital_Status
+table(transformed_car_df$Claim_Flag, transformed_car_df$Marital_Status)
+```
+
+Output: Married customers are claiming less frequently than unmarried by a small amount.
+
+Statistical analysis of Claim_Flag and Marital_Status:
+
+```{r}
+# Chi Square Test for independency test.
+# H0:`Claim_Flag`and `Marital_Status` are independent.
+# H1:`Claim_Flag`and `Marital_Status` are dependent.
+chisq.test(transformed_car_df$Claim_Flag , transformed_car_df$Marital_Status)
+```
+
+Output:p-value is significant, so we reject $H0$ which means Claim_Flag and Marital_Status are dependent.
+
+Graphical analysis of Claim_Flag and Gender:
+
+```{r}
+# mosaic plot 
+ggplot(transformed_car_df) +  geom_mosaic(aes(x = product(Claim_Flag), fill=Gender)) +labs(title="Mosaic plot of Claim_Flag vs Gender" , x="Claim_Flag", y="Gender" )+ theme_mosaic()
+```
+
+Output: Female customers are slightly large in number compared to male customers who file a claim.
+
+Contingency table for both Claim_Flag and Gender:
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Gender
+table(transformed_car_df$Claim_Flag, transformed_car_df$Gender)
+```
+
+Output: Female customers are claiming more compared to male customers.
+
+Statistical analysis of Claim_Flag and Gender:
+
+```{r}
+# Chi Square Test for independency test.
+chisq.test(transformed_car_df$Claim_Flag , transformed_car_df$Gender)
+# Output:p-value is less than 0.05, so we reject $H0$.
+```
+
+Output: p-value is less than 0.05, so we reject $H0$ which means Claim_Flag and Gender are dependent.
+
+Graphical analysis of Claim_Flag and Education:
+
+```{r}
+# grouped bar plot to display the relationship  
+ggplot(transformed_car_df,aes(x = Education,fill=Claim_Flag)) + 
+  geom_bar(position = "dodge") +  
+  ggtitle("Bar plot of Claim_Flag vs Education") +
+  theme_minimal()+
+  theme( legend.justification = "right")
+```
+
+Output: Customers with high school level Education have filed claims the most and those with PhD claimed the least preceded by Masters.It seems like customers with high Education level drives well compared to those who are under educated.
+
+Contingency table for both Claim_Flag and Education.
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Education
+table(transformed_car_df$Claim_Flag, transformed_car_df$Education)
+```
+
+Output: Customers with high school level Education are claiming more for insurance compared to other levels of Education.
+
+Statistical analysis of Claim_Flag and Education:
+
+```{r}
+# Chi Square Test for independency test.
+chisq.test(transformed_car_df$Claim_Flag , transformed_car_df$Education)
+```
+
+Output: p-value is very less than 0.05, so we reject $H0$ which means Claim_Flag and Education are dependent.
+
+Graphical analysis of Claim_Flag and Occupation:
+
+```{r}
+# grouped bar plot to display the relationship  
+ggplot(transformed_car_df,aes(x = Occupation,fill=Claim_Flag)) + 
+  geom_bar(position = "dodge") +  
+  ggtitle("Bar plot of Claim_Flag vs Occupation") +
+  theme_minimal() + theme(legend.position = "right")+
+  theme(axis.text.x = element_text(angle=45,hjust = 1)) 
+```
+
+Output: Customers with high demanded Occupations claims very less compared to less demanded jobs.
+So there can be a relation between Occupation and claim flag.
+
+Contingency table for both Claim_Flag and Occupation.
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Occupation
+table(transformed_car_df$Claim_Flag, transformed_car_df$Occupation)
+```
+
+Output: Customers with Blue Collar level Occupation have filed the claims most and customers who are doctors filed the least 320 customers who filed a claim are Lawyers.
+
+Statistical analysis of Claim_Flag and Occupation:
+
+```{r}
+# Chi Square Test for independency test.
+chisq.test(transformed_car_df$Claim_Flag , transformed_car_df$Occupation)
+```
+
+Output: p-value is significant, so we reject $H0$ which means Claim_Flag and Occupation are dependent.
+
+Graphical analysis of Claim_Flag and Car_Use.
+
+```{r}
+# mosaic plot to show the relation
+ggplot(transformed_car_df) +  geom_mosaic(aes(x = product(Claim_Flag), fill= Car_Use)) +labs(title="Mosaic plot of Claim_Flag vs Car_Use" , x="Claim_Flag", y="Car_Use" )+ theme_mosaic()
+```
+
+Output: It reveals that private car use claims the most.
+This suggests that individuals using their cars for personal use are more likely to file insurance claims compared to commercial ones.
+
+Contingency table for both Claim_Flag and Car_Use.
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Car_Use
+table(transformed_car_df$Claim_Flag, transformed_car_df$Car_Use)
+```
+
+Output:Customers with Private car have filed the claims most rather than customers with commercial ones.
+
+Statistical analysis of Claim_Flag and Car_Use.
+
+```{r}
+# Chi Square Test for independency test.
+chisq.test(transformed_car_df$Claim_Flag , transformed_car_df$Car_Use)
+```
+
+Output: p-value is very less than 0.05, so we reject $H0$ which means Claim_Flag and Car_Use are dependent.
+
+Graphical analysis of Claim_Flag and Car_Type
+
+```{r}
+# Bar plot 
+ggplot(transformed_car_df,aes(x = Car_Type,fill=Claim_Flag)) + 
+  geom_bar(position = "dodge") +  
+  ggtitle("Bar plot of Claim_Flag vs Car_Type") +
+  theme_minimal() + theme(legend.position = "right")
+```
+
+Output: The graph indicates that SUV and Pickup car types have the highest number of claims filed.This implies that, in comparison to other car types, these particular car types are more likely to be the subject of insurance claims.
+
+Contingency table analysis for both Claim_Flag and Car_Type.
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Car_Type
+table(transformed_car_df$Claim_Flag, transformed_car_df$Car_Type)
+```
+
+Output: Table shows that Customer who's having SUV car have filed the claims most followed by Pickup rather other types of car.
+
+Statistical analysis of Claim_Flag and Car_Type.
+
+```{r}
+# Chi Square Test for independency test.
+# Define our null and alternative hypothesis
+# H0:`Claim_Flag`and `Car_Type` are independent.
+# H1:`Claim_Flag`and `Car_Type` are dependent.
+chisq.test(transformed_car_df$Claim_Flag , transformed_car_df$Car_Type)
+```
+
+Output: p-value is very less than 0.05, so we reject $H0$ which means Claim_Flag and Car_Type are dependent.
+
+Graphical analysis of Claim_Flag and Red_Car
+
+```{r}
+# mosaic plot to show the relation
+ggplot(transformed_car_df) +  geom_mosaic(aes(x = product(Claim_Flag), fill= Red_Car)) +labs(title="Mosaic plot of Claim_Flag vs Red_Car" , x="Claim_Flag", y="Red_Car" )+ theme_mosaic()
+```
+
+Output: it appears to have a bit more insurance claims for non-red cars.
+
+Contingency table analysis for both Claim_Flag and Red_Car.
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Red_Car
+table(transformed_car_df$Claim_Flag, transformed_car_df$Red_Car)
+```
+
+Output: Table shows that Customer who doesn't owns a red car claims the most as compared to the customer who has the red car.
+
+Statistical analysis of Claim_Flag and Red_Car.
+
+```{r}
+# Chi Square Test for independency test.
+# H0:`Claim_Flag`and `Red_Car` are independent.
+# H1:`Claim_Flag`and `Red_Car` are dependent.
+chisq.test(transformed_car_df$Claim_Flag , transformed_car_df$Red_Car)
+```
+
+Output: There is no association between the color of the car and the claim being filed, so drop it from the dataset.
+
+```{r}
+
+transformed_car_df <- subset(transformed_car_df , select = -Red_Car )
+str(transformed_car_df)
+```
+
+
+Graphical analysis of Claim_Flag and License_License_Revoked.
+
+```{r}
+# mosaic plot 
+ggplot(transformed_car_df) + 
+  geom_mosaic(aes(x = product(Claim_Flag), fill=License_Revoked)) + 
+  labs(title="Mosaic plot of Claim_Flag vs License_Revoked" , x="Claim_Flag", y="License_Revoked" ) +
+  theme_mosaic()
+```
+
+Output: It appears that customers who have License_Revoked their licences are making claims less frequently than those who still hold licences.
+
+Contingency table analysis for both Claim_Flag and License_License_Revoked.
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and License_License_Revoked
+table(transformed_car_df$Claim_Flag, transformed_car_df$License_Revoked)
+```
+
+Output: Here it seems that customers who License_Revoked their license are claiming less frequently than the customer who have their license.
+
+Statistical analysis of Claim_Flag and License_License_Revoked.
+
+```{r}
+# Chi Square Test for independency test.
+# H0:`Claim_Flag`and `License_License_Revoked` are independent.
+# H1:`Claim_Flag`and `License_License_Revoked` are dependent.
+chisq.test(transformed_car_df$Claim_Flag , transformed_car_df$License_Revoked)
+```
+
+Output: p-value is very less than 0.05, so we reject $H0$ which means Claim_Flag and License_Revoked are dependent.
+
+Graphical analysis of Claim_Flag and Urbanicity.
+
+```{r}
+# mosaic plot 
+ggplot(transformed_car_df) + 
+  geom_mosaic(aes(x = product(Claim_Flag), fill=Urbanicity)) + 
+  labs(title="Mosaic plot of Claim_Flag vs Urbanicity" , x="Claim_Flag", y="Urbanicity" ) +
+  theme_mosaic()
+```
+
+Output: The analysis depicts that Highly Urban/Urban residents have the largest frequency of insurance claims filed.This shows that individuals residing in urban areas are more likely to file insurance claims compared to rural residents.
+
+Contingency table analysis for both Claim_Flag and Urbanicity.
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Urbanicity
+table(transformed_car_df$Claim_Flag, transformed_car_df$Urbanicity)
+```
+
+Output: Here the table indicates that customers who live in Highly Urban/Urban are claiming more frequently as compare to rural residents.
+
+Statistical analysis of Claim_Flag and Urbanicity.
+
+```{r}
+# Chi Square Test for independency test.
+# H0:`Claim_Flag`and `Urbanicity` are independent.
+# H1:`Claim_Flag`and `Urbanicity` are dependent.
+chisq.test(transformed_car_df$Claim_Flag , transformed_car_df$Urbanicity)
+```
+
+Output: p-value is very less than 0.05, so we reject $H0$ which means Claim_Flag and Urbanicity are dependent.
+
+### 4.2.2 Biavariant analysis for continuous variables and the categorical, dependent variable (Claim_Flag)
+
+Graphical analysis for both Kids_Drive and Claim_Flag
+
+```{r}
+# Rows of transformed_car_df grouped by Kids_Drive and Claim_Flag
+kids_drive_dataset <- transformed_car_df %>% group_by(Kids_Drive,Claim_Flag) %>% 
+                      summarise(Count=n(), .groups = 'keep')
+
+# Grouped bar plot for Kids_Drive and Claim_Flag
+ggplot(kids_drive_dataset, aes(x = Claim_Flag, y = Count, fill = Claim_Flag)) +
+  geom_bar(stat = "identity", position = "dodge") +#stat = 'identity' to correct the height 
+                                                   #of the columns according to the count 
+  facet_wrap(~ Kids_Drive, scales = "free") +      #to have each facet its own scale
+  labs(x = "Claim Flag", y = "Count", title = "Count of Claim_Flag by Kids_Drive") 
+```
+
+Output: Customers with more number of kids who drive have filed less claims than those with less number of kids who drive.Maximum claims are filed by customers with no kids at the Age of driving.
+
+```{r}
+# Cumulative mean values of Kids_Drive among the levels of Claim_Flag 
+aggregate(transformed_car_df$Kids_Drive ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean values of Kids_Drive of customers who claimed is higher than those who did not.
+
+Statistical analysis to check whether mean Kids_Drive equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean of Kids_Drive equal in both Claim_Flag levels.
+# H0: Mean Kids_Drive of customers who claim = Mean Kids_Drive of customers who do not claim.
+# H1: Mean Kids_Drive of customers who claim != Mean Kids_Drive of customers who do not claim.
+t.test(transformed_car_df$Kids_Drive~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean Kids_Drive.
+p-value is less than 0.05.So we reject $H0$.
+
+Graphical analysis for both Age and Claim_Flag
+
+```{r}
+# Box plot for Age and Claim_Flag
+ggplot(transformed_car_df, aes(y=Age, x=Claim_Flag,fill=Claim_Flag)) + 
+  geom_boxplot(alpha=0.8)+ theme_classic() + 
+  ggtitle("Box plot of Age vs Claim_Flag") + 
+  scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Age")
+```
+
+Output: Median Age of customers who claim is lower than the customers who are not claiming.There are some outliers listed but they are not implausible values.
+
+```{r}
+# Cumulative mean Age among the levels of Claim_Flag 
+aggregate(transformed_car_df$Age ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Age of customers who filed a claim is lower than those who did not file a claim.
+
+Statistical analysis to check whether mean Age equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean Age of customers equal in both Claim_Flag levels.
+# H0: Mean Age of customers who claim = Mean Age of customers who do not claim.
+# H1: Mean Age of customers who claim != Mean Age of customers who do not claim.
+t.test(transformed_car_df$Age~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean Age.
+p-value is less than 0.05.So we reject $H0$.
+
+Graphical analysis for both Kids_Home and Claim_Flag
+
+```{r}
+# Rows of transformed_car_df grouped by Kids_Home and Claim_Flag
+kids_home_dataset <- transformed_car_df %>% group_by(Kids_Home,Claim_Flag) %>% 
+                     summarise(Count=n(), .groups = 'keep')
+
+# Grouped bar plot for Kids_Home and Claim_Flag
+ggplot(kids_home_dataset, aes(x = Claim_Flag, y = Count, fill = Claim_Flag)) +
+  geom_bar(stat = "identity", position = "dodge") +#stat = 'identity' to correct he height 
+                                                   #of the columns according to the count 
+  facet_wrap(~ Kids_Home, scales = "free") +      #to have each facet its own scale
+  labs(x = "Claim Flag", y = "Count", title = "Count of Claim_Flag by Kids_Home") 
+```
+
+Output: Maximum claims are filed by customers with no more kids at home.
+
+```{r}
+# Cumulative mean values of Kids_Home among the levels of Claim_Flag
+aggregate(transformed_car_df$Kids_Home ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean values of Kids_Home of customers who claimed is higher than those who did not.
+
+Statistical analysis to check whether mean Kids_Home equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean of Kids_Home equal in both Claim_Flag levels.
+# H0: Mean Kids_Home of customers who claim = Mean Kids_Home of customers who do not claim.
+# H1: Mean Kids_Home of customers who claim != Mean Kids_Home of customers who do not claim.
+t.test(transformed_car_df$Kids_Home~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean Kids_Home values.
+p-value is less than 0.05.So we reject $H0$.
+
+Graphical analysis for both Year_at_Job and Claim_Flag
+
+```{r}
+# Box plot for Year_at_Job and Claim_Flag
+ggplot(transformed_car_df, aes(y=Year_at_Job, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8) + 
+    theme_classic() + ggtitle("Box plot of Year_at_Job vs Claim_Flag") +
+    scale_y_continuous(n.breaks=5)+xlab("Claim Flag")+ylab("Years at Job")
+```
+
+Output: Median of Year_at_Job of customers who claims is equal to customers who are not claiming.
+The outliers listed are not implausible values.
+
+```{r}
+#Cumulative mean value of Year_at_Job among the levels of Claim_Flag 
+aggregate(transformed_car_df$Year_at_Job ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean of Year_at_Job of customers who claim is lower than customers who are not claiming.
+
+Statistical analysis to check whether mean Year_at_Job equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean of Year_at_Job equal in both Claim_Flag levels.
+# H0: Mean Year_at_Job of customers who claim = Mean Year_at_Job of customers who do not claim.
+# H1: Mean Year_at_Job of customers who claim != Mean Year_at_Job of customers who do not claim.
+t.test(transformed_car_df$Year_at_Job~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean values of Year_at_Job.
+p-value is less than 0.05.So we reject $H0$.
+
+Graphical analysis for both Income and Claim_Flag
+
+```{r}
+# Box plot for Income and Claim_Flag
+ggplot(transformed_car_df, aes(y=Income, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Income vs Claim_Flag") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Income($)")
+```
+
+Output: Median Income of customers who claimed is lower than customers who did not.
+There are some outliers listed which are not implausible values.
+
+```{r}
+# Cumulative mean Income among the levels of Claim_Flag 
+aggregate(transformed_car_df$Income ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Income of customers who claimed is lower than those who did not .
+
+Statistical analysis to check whether mean Income equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean Income equal in both Claim_Flag levels.
+# H0: Mean Income of customers who claim = Mean Income of customers who do not claim.
+# H1: Mean Income of customers who claim != Mean Income of customers who do not claim.
+t.test(transformed_car_df$Income~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean Income.
+p-value is less than 0.05.
+So we reject $H0$.
+
+Graphical analysis for both Home_Val and Claim_Flag
+
+```{r}
+# Box plot for Home_Val and Claim_Flag
+ggplot(transformed_car_df, aes(y=Home_Val, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8) + 
+    theme_classic() + ggtitle("Box plot of Home_Val vs Claim_Flag")+
+    scale_y_continuous(n.breaks=20)+xlab("Claim Flag")+ylab("Home Value($)")
+```
+
+Output: Median Home Value of customers who claimed is lower than customers who did not.
+The outliers visible are not implausible values.
+
+```{r}
+# Cumulative mean Home_Val among the levels of Claim_Flag 
+aggregate(transformed_car_df$Home_Val ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean home value of customers who claimed is lower than those who did not .
+
+Statistical analysis to check whether mean Home_Val equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean Home Value equal in both Claim_Flag levels.
+# H0: Mean Home_Val of customers who claim = Mean Home_Val of customers who do not claim.
+# H1: Mean Home_Val of customers who claim != Mean Home_Val of customers who do not claim.
+t.test(transformed_car_df$Home_Val~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean Home_Val.
+p-value is less than 0.05.So we reject $H0$.
+
+Graphical analysis for both Travel_Time and Claim_Flag
+
+```{r}
+# Box plot for Travel_Time and Claim_Flag
+ggplot(transformed_car_df, aes(y=Travel_Time, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8) + 
+    theme_classic() + ggtitle("Box plot of Travel_Time vs Claim_Flag")+
+    scale_y_continuous(n.breaks=20)+xlab("Claim Flag")+ylab("Travel Time(mins)")
+```
+
+Output: Median travel time of customers who claimed is higher than customers who did not claim.
+The outliers listed are not implausible values.
+
+```{r}
+# Cumulative mean Travel_Time among the levels of Claim_Flag 
+aggregate(transformed_car_df$Travel_Time ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Travel_Time of customers who filed a claim is higher than those who did not file a claim .
+
+Statistical analysis to check whether mean Travel_Time equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean Travel_Time equal in both Claim_Flag levels.
+# H0: Mean Travel_Time of customers who claim = Mean Travel_Time of customers who do not claim.
+# H1: Mean Travel_Time of customers who claim != Mean Travel_Time of customers who do not claim.
+t.test(transformed_car_df$Travel_Time~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean Travel_Time.
+p-value is less than 0.05.So we reject $H0$.
+
+Graphical analysis for both Car_Value and Claim_Flag
+
+```{r}
+# Box plot for Car_Value and Claim_Flag
+ggplot(transformed_car_df, aes(y=Car_Value, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Car_Value vs Claim_Flag") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Car Value")
+```
+
+Output: Median Car_Value of customers who claim is lower than customers who are not claiming.
+The outliers visible are not implausible values.
+
+```{r}
+# Cumulative mean Car_Value among the levels of Claim_Flag 
+aggregate(transformed_car_df$Car_Value ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Car_Value of customers who filed a claim is lower than those who did not file a claim .
+
+Statistical analysis to check whether mean Car_Value equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean Car_Value equal in both Claim_Flag levels.
+# H0: Mean Car_Value of customers who claim = Mean Car_Value of customers who do not claim.
+# H1: Mean Car_Value of customers who claim != Mean Car_Value of customers who do not claim.
+t.test(transformed_car_df$Car_Value~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean Car_Value.
+p-value is less than 0.05.
+So we reject $H0$.
+
+Graphical analysis for both Time_in_Force and Claim_Flag
+
+```{r}
+# Box plot for Time_in_Force and Claim_Flag
+ggplot(transformed_car_df, aes(y=Time_in_Force, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Time_in_Force vs Claim_Flag") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Time in Force(years)")
+```
+
+Output: Median Time_in_Force of customers who claim is lower than customers who are not claiming.
+A few outliers visible, are not implausible values.
+
+```{r}
+# Cumulative mean Time_in_Force among the levels of Claim_Flag 
+aggregate(transformed_car_df$Time_in_Force ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Time_in_Force of customers who claimed is a bit lower than those who did not claim .
+
+Statistical analysis to check whether mean Time_in_Force equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean Time_in_Force equal in both Claim_Flag levels.
+# H0: Mean Time_in_Force of customers who claim = Mean Time_in_Force of customers who do not claim.
+# H1: Mean Time_in_Force of customers who claim != Mean Time_in_Force of customers who do not claim.
+t.test(transformed_car_df$Time_in_Force~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean values of Time_in_Force.
+p-value is less than 0.05.
+So we reject $H0$.
+
+Graphical analysis for both Old_Claim and Claim_Flag
+
+```{r}
+# Box plot for Old_Claim and Claim_Flag
+ggplot(transformed_car_df, aes(y=Old_Claim, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Old_Claim vs Claim_Flag") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Old Claim($)")
+```
+
+Output: Median amount of Old_Claim of customers who claim is more than the median amount for customers who are not claiming.Many outliers are visible, which are not implausible values.
+
+```{r}
+# Cumulative mean Old_Claim among the levels of Claim_Flag 
+aggregate(transformed_car_df$Old_Claim ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Old_Claim amount of customers who filed a claim is higher than those who did not file a claim .
+
+Statistical analysis to check whether mean Old_Claim equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean amount of Old_Claim equal in both Claim_Flag levels.
+# H0: Mean Old_Claim of customers who claim = Mean Old_Claim of customers who do not claim.
+# H1: Mean Old_Claim of customers who claim != Mean Old_Claim of customers who do not claim.
+t.test(transformed_car_df$Old_Claim~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean Old_Claim amounts.
+p-value is less than 0.05.
+So we reject $H0$.
+
+Graphical analysis for both Claim_Freq and Claim_Flag
+
+```{r}
+# Rows of transformed_car_df grouped by Claim_Freq and Claim_Flag
+claim_Freq_dataset <- transformed_car_df %>% group_by(Claim_Freq,Claim_Flag) %>% 
+                     summarise(Count=n(), .groups = 'keep')
+
+# Grouped bar plot for Claim_Freq and Claim_Flag
+ggplot(claim_Freq_dataset, aes(x = Claim_Flag, y = Count, fill = Claim_Flag)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ Claim_Freq, scales = "free") +      
+  labs(x = "Claim Flag", y = "Count", title = "Count of Claim_Flag by Claim_Freq") 
+```
+
+Output: The bar graph shows that customers with more number of Claim_Freq have filed less claims than those with less number of Claim_Freq.
+
+```{r}
+# Cumulative mean Claim_Freq among the levels of Claim_Flag 
+aggregate(transformed_car_df$Claim_Freq ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Claim_Freq of customers who claimed is higher than those who did not claim .
+
+Statistical analysis to check whether mean Claim_Freq equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean Claim_Freq equal in both Claim_Flag levels.
+# H0: Mean Claim_Freq of customers who claim = Mean Claim_Freq of customers who do not claim.
+# H1: Mean Claim_Freq of customers who claim != Mean Claim_Freq of customers who do not claim.
+t.test(transformed_car_df$Claim_Freq~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean Claim_Freq values.
+p-value is less than 0.05.
+So we reject $H0$.
+
+Graphical analysis for both Vehicle_Record_Points and Claim_Flag
+
+```{r}
+# Box plot to visualize Vehicle_Record_Points and Claim_Flag
+ggplot(transformed_car_df, aes(y=Vehicle_Record_Points, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Vehicle_Record_Points vs Claim_Flag") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Vehicle Record Points")
+```
+
+Output: Median Vehicle_Record_Points of customers who claim is higher than the those who are not claiming.
+There are few outliers listed which are not implausible values.
+
+```{r}
+# Cumulative mean Vehicle_Record_Points among the levels of Claim_Flag 
+aggregate(transformed_car_df$Vehicle_Record_Points ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Vehicle_Record_Points of customers who filed a claim is higher than those who did not file a claim.
+
+Statistical analysis to check whether mean Vehicle_Record_Points equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean Vehicle_Record_Points equal in both Claim_Flag levels.
+# H0: Mean Vehicle_Record_Points of customers who claim = Mean Vehicle_Record_Points of customers who do not claim.
+# H1: Mean Vehicle_Record_Points of customers who claim != Mean Vehicle_Record_Points of customers who do not claim.
+t.test(transformed_car_df$Vehicle_Record_Points~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean Vehicle_Record_Points values.
+p-value is less than 0.05.
+So we reject $H0$.
+
+Graphical analysis for both Car_Age and Claim_Flag
+
+```{r}
+# Box plot to visualize Car_Age and Claim_Flag
+ggplot(transformed_car_df, aes(y=Car_Age, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Car_Age vs Claim_Flag") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Car Age")
+```
+
+Output: Median Car_Age of customers who claim is equal to those who are not claiming.There are a few outliers listed which are not implausible values.
+
+```{r}
+# Cumulative mean Car_Age among the levels of Claim_Flag 
+aggregate(transformed_car_df$Car_Age ~ transformed_car_df$Claim_Flag, FUN="mean")
+```
+
+Output: The mean Car_Age for the cars of customers who filed a claim is slightly less than for the cars of those customers who did not claim.
+
+Statistical analysis to check whether mean Car_Age equal in both Claim_Flag levels
+
+```{r}
+# t.test for checking whether mean of the Car_Age of cars equal in both Claim_Flag levels.
+# H0: Mean Car_Age of the cars of customers who claim = Mean Car_Age of the cars of customers who do not claim.
+# H1: Mean Car_Age of the cars of customers who claim != Mean Car_Age of the cars of customers who do not claim.
+t.test(transformed_car_df$Car_Age~transformed_car_df$Claim_Flag)
+```
+
+Output: There is a significant difference in mean Car_Age values.
+p-value is less than 0.05.
+So we reject $H0$.
+
+## 4.3 Multivariant analysis
+
+Covariation analysis for continuous variables:
+
+```{r}
+# Extract the continuous variables from the dataset.
+continuous.var.df<- subset(transformed_car_df , select= c ("Kids_Drive", "Age", "Kids_Home", "Year_at_Job", "Income" , "Home_Val", "Travel_Time", "Car_Value" , "Time_in_Force" , "Old_Claim" , "Claim_Freq","Vehicle_Record_Points", "Car_Age"))
+
+# Check the correlation between the variables
+cors<- cor(continuous.var.df)
+cors
+
+# Numerically, visualise the matrix of correlation coefficients (at the form of a heatmap) between the variables.
+corrplot(cors, method="color", tl.cex = .70,tl.col="brown", cl.cex = .70, addCoef.col = "black", number.digits = 1, number.cex = 0.5,col = colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))(200))
+```
+
+Output: positive correlation between Home_Val and Income, Old_Claim and Claim_Freq, Kids_Drive and Kids_Home, Income and Car_Value, Income and Car_Age, and Claim_Freq and Vehicle_Record_Points.
+Kids_Home and Age are negatively correlated.
+
+## 4.4 Resampling
+
+```{r}
+# Indices of instances with Claim_Flag = 0 and Claim_Flag = 1
+Flag_0 <- which(transformed_car_df$Claim_Flag == '0')
+Flag_1 <- which(transformed_car_df$Claim_Flag == '1')
+
+# Frequencies before resampling using oversampling
+length(Flag_0)
+length(Flag_1)
+
+strata_sizes <- c(length(Flag_1), length(Flag_1)) 
+
+# Set the seed
+set.seed(145)
+# Perform stratified sampling
+
+stratified_sample <- strata(transformed_car_df, "Claim_Flag", size = strata_sizes, method = "srswor")
+
+# Obtain our stratified dataset
+stratified_car_insurance <- getdata(transformed_car_df, stratified_sample)
+balanced_car_sample <- subset(stratified_car_insurance, select = -c(ID_unit, Prob, Stratum))
+
+# inspect the distribution of Claim_Flag in the balanced_car_sample
+table(balanced_car_sample$Claim_Flag)
+```
+
+## 4.5 Repeating the Univariant analysis using the resampled dataset:
+
+### 4.5.1 Univaraint analysis for continous variables:
+
+Graphical and statistical analysis of Kids_Drive variable:
+
+```{r}
+# 1- Histogram and density plot of 
+ggplot(balanced_car_sample, aes(x=Kids_Drive))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Kids_Drive Distribution")+xlab("Kids_Drive")+geom_density(alpha=0.2 , fill="blue")
+
+#2- Numerical analysis of Kids_Drive variable:
+summary(balanced_car_sample$Kids_Drive)
+var(balanced_car_sample$Kids_Drive)
+```
+
+Output: 1- The distribution is still not normal.
+2- Most of the customers don't have kids at the age of driving.
+3- Enhanced variability.
+
+Graphical and statistical analysis of Age variable:
+
+```{r}
+# 1- Histogram and density plot of Age variable
+ggplot(balanced_car_sample, aes(x=Age))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Age Distribution")+xlab("Age")+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Age
+ggplot(balanced_car_sample, aes(y=Age))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Age", y="Age")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Age variable:
+summary(balanced_car_sample$Age)
+var(balanced_car_sample$Age)
+```
+
+Output: 1- The distribution is normal.
+2- Enhanced variability.
+3- Less number of outliers have been detected, but we think they are plausible.
+
+Graphical and statistical analysis of Income variable:
+
+```{r}
+# 1- Histogram and density plot of Income variable
+ggplot(balanced_car_sample, aes(x=Income))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Income Distribution")+xlab("Income")+geom_density(alpha=0.2 , fill="blue")
+
+
+# 2- Box plot will display the extreme observations at Income
+ggplot(balanced_car_sample, aes(y=Income))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Income", y="Income")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# To adjust the distribution, log function is used
+ggplot(balanced_car_sample, aes(y=log(Income)))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Income($k)", y="log(Income)")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Income variable:
+summary(balanced_car_sample$Income)
+var(balanced_car_sample$Income)
+```
+
+Output: 1- The distribution is not normal.It is skewed to the right.
+2- Little bit less outliers which still plausible.
+3- Little bit lower variability
+
+Graphical and statistical analysis of Kids_Home variable:
+
+```{r}
+# 1- Histogram and density plot of Kids_Home variable
+ggplot(balanced_car_sample, aes(x=Kids_Home))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Kids_Home Distribution")+xlab("Kids_Home")+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Kids_Home 
+ggplot(balanced_car_sample, aes(y=Kids_Home))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Kids_Home", y="Kids_Home")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Income variable:
+summary(balanced_car_sample$Kids_Home)
+var(balanced_car_sample$Kids_Home)
+```
+
+Output: 1- The distribution is not normal.It is skewed to the right 2- Enhanced variability 3- Get rid of all the outliers
+
+Graphical and statistical analysis of Year_at_Job variable:
+
+```{r}
+# 1- Histogram and density plot of Year_at_Job variable
+ggplot(balanced_car_sample, aes(x=Year_at_Job))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Year_at_Job Distribution")+xlab("Year_at_Job")+geom_density(alpha=0.2 , fill="blue")+ scale_x_continuous(breaks=seq(0,25,2))
+
+# 2- Box plot will display the extreme observations at Year_at_Job
+ggplot(balanced_car_sample, aes(y=Year_at_Job))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Year_at_Job", y="Year_at_Job")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Year_at_Job variable:
+summary(balanced_car_sample$Year_at_Job)
+var(balanced_car_sample$Year_at_Job)
+```
+
+Output: 1- The distribution is skewed to the left.
+2- Year_at_Job still has a bunch of outliers but still plausible.
+3- Enhanced variability.
+
+Graphical and statistical analysis of Home_Val variable:
+
+```{r}
+# 1- Histogram and density plot of Home_Val.
+ggplot(balanced_car_sample, aes(x=Home_Val))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Home_Val Distribution")+xlab("Home_Val")+geom_density(alpha=0.2 , fill="blue")
+
+# Using log to adjust the distribution and make the plot more readable.
+ggplot(balanced_car_sample, aes(x=log(Home_Val)))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Home_Val Distribution")+xlab("log(Home_Val)") +geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Home_Val
+ggplot(balanced_car_sample, aes(y=Home_Val))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Home_Val", y="Home_Value")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Home_Val variable:
+summary(balanced_car_sample$Home_Val)
+var(balanced_car_sample$Home_Val)
+```
+
+Output: 1- The distribution is skewed to the right.
+2- Home_Val still has outliers which are plausible.
+3- Little decrease in the varability.
+
+Graphical and statistical analysis of Travel_Time variable:
+
+```{r}
+# 1- Histogram and density plot of Travel_Time
+ggplot(balanced_car_sample, aes(x=Travel_Time))+geom_histogram(aes(y=..density..),bins= 30,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Travel_Time (in minutes) Distribution")+xlab("Travel_Time (in minutes)")+geom_density(alpha=0.2 , fill="blue")+ scale_x_continuous(breaks=seq(0,150,10))
+
+# 2- Box plot will display the extreme observations at Travel_Time
+ggplot(balanced_car_sample, aes(y=Travel_Time))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Travel_Time (in minutes)", y="Travel_Time (in minutes)")+ scale_y_continuous(breaks=seq(0,150,10))+ coord_flip()
+
+# 3- Numerical analysis of Travel_Time variable:
+summary(balanced_car_sample$Travel_Time)
+var(balanced_car_sample$Travel_Time)
+```
+
+Output: 1- The distribution is skewed little bit to the right 2- Travel_Time has less outliers which are plausible.
+
+Graphical and statistical analysis of Car_Value variable:
+
+```{r}
+# 1- Histogram and density plot of Car_Value variable
+ggplot(balanced_car_sample, aes(x=Car_Value))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Car_Value Distribution")+xlab("Car_Value")+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Car_Value 
+ggplot(balanced_car_sample, aes(y=Car_Value))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Car_Value", y="Car_Value")+ scale_y_continuous(n.breaks=20)+ coord_flip()
+
+# 3- Numerical analysis of Car_Value variable:
+summary(balanced_car_sample$Car_Value)
+var(balanced_car_sample$Car_Value)
+```
+
+Output: 1- The distribution is skewed to the right.
+2- Car_Value has less of outliers values which still plausible.
+3- A little enhance in the variability.
+
+Graphical and statistical analysis of Time_in_Force variable:
+
+```{r}
+# 1- Histogram and density plot of Time_in_Force
+ggplot(balanced_car_sample, aes(x=Time_in_Force))+geom_histogram(aes(y=..density..),bins= 30,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Time_in_Force Distribution")+xlab("Time_in_Force")+ scale_x_continuous(breaks=seq(0,30,5))+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Time_in_Force 
+ggplot(balanced_car_sample, aes(y=Time_in_Force))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Time_in_Force", y="Time_in_Force")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Time_in_Force variable:
+summary(balanced_car_sample$Time_in_Force)
+var(balanced_car_sample$Time_in_Force)
+```
+
+Output: 1- The distribution is skewed to the right.
+2- Time_in_Force still has outliers which are plausible.
+3- Variability nearly the same
+
+Graphical and statistical analysis of Old_Claim variable:
+
+```{r}
+# 1- Histogram and density plot of Old_Claim
+
+ggplot(balanced_car_sample, aes(x=Old_Claim))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Old_Claim Distribution")+xlab("Old_Claim")+geom_density(alpha=0.2 , fill="blue")
+
+# Using log to adjust the distribution and make the plot more readable.
+ggplot(balanced_car_sample, aes(x=log(Old_Claim)))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of log(Old_Claim) Distribution")+xlab("log(Old_Claim)")+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Old_Claim
+ggplot(balanced_car_sample, aes(y=Old_Claim))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Old_Claim", y="Old_Claim")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+
+#Using log to adjust the distribution and make the plot more readable.
+
+ggplot(balanced_car_sample, aes(y=log(Old_Claim)))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of log(Old_Claim)", y="log(Old_Claim)")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Old_Claim variable:
+summary(balanced_car_sample$Old_Claim)
+var(balanced_car_sample$Old_Claim)
+```
+
+Output: 1- The distribution is not normal.It is skewed to the right 2- Old_Claim has less outliers 3- Enhanced variability
+
+Graphical and statistical analysis of Claim_Freq variable:
+
+```{r}
+# 1- Histogram and density plot of Claim_Freq
+ 
+ggplot(balanced_car_sample, aes(x=Claim_Freq))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw()+ggtitle("Histogram and Density Plot of Claim_Freq Distribution")+xlab("Claim_Freq")+geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Claim_Freq
+ggplot(balanced_car_sample, aes(y=Claim_Freq))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Claim_Freq", y="Claim_Freq")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Old_Claim variable:
+summary(balanced_car_sample$Claim_Freq)
+var(balanced_car_sample$Claim_Freq)
+```
+
+Output: 1- The distribution is not normal.It is skewed to the right.
+2- Enhanced variability
+
+Graphical and statistical analysis of Vehicle_Record_Points variable:
+
+```{r}
+# 1- Histogram and density plot of Vehicle_Record_Points
+ 
+ggplot(balanced_car_sample, aes(x=Vehicle_Record_Points))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw() +ggtitle("Histogram and Density Plot of Vehicle_Record_Points Distribution") +xlab("Vehicle_Record_Points")+ geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Vehicle_Record_Points
+ggplot(balanced_car_sample, aes(y=Vehicle_Record_Points))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Vehicle_Record_Points", y="Vehicle_Record_Points")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Vehicle_Record_Points variable:
+summary(balanced_car_sample$Vehicle_Record_Points)
+var(balanced_car_sample$Vehicle_Record_Points)
+```
+
+Output: 1- The distribution is not normal.It is skewed to the right.
+2- Most of the customers don't have points on their licence.
+There are some outliers.
+
+Graphical and statistical analysis of Car_Age variable:
+
+```{r}
+# 1- Histogram and density plot of Car_Age
+ 
+ggplot(balanced_car_sample, aes(x=Car_Age))+geom_histogram(aes(y=..density..),bins= 20,col= "black",fill= "grey") + theme_bw() +ggtitle("Histogram and Density Plot of Car_Age Distribution") +xlab("Car_Age")+ geom_density(alpha=0.2 , fill="blue")
+
+# 2- Box plot will display the extreme observations at Car_Age
+ggplot(balanced_car_sample, aes(y=Car_Age))+geom_boxplot(fill = "green" , alpha = 0.7  , notch = T)+theme_bw()+ labs(title = "Box Plot of Car_Age", y="Car_Age")+ scale_y_continuous(n.breaks=10)+ coord_flip()
+
+# 3- Numerical analysis of Car_Age variable:
+summary(balanced_car_sample$Car_Age)
+var(balanced_car_sample$Car_Age)
+```
+
+Output: 1- The distribution is not normal.It is skewed to the right 2- Little bit reduction in the variability.
+
+### 4.5.2 Univariate analysis of categorical variables
+
+```{r}
+balanced_df_size <- dim(balanced_car_sample)[1]
+```
+
+Graphical and statistical analysis of Single_Parent variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Single_Parent
+ ggplot( balanced_car_sample , aes(x=Single_Parent, fill=Single_Parent))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Single_Parent Bar chart" )+ xlab("Single_Parent")
+
+# 2- Numerical analysis for Single_Parent
+#Frequency count for the categories of Single_Parent
+table(balanced_car_sample$Single_Parent)/balanced_df_size
+```
+
+Output: 2% increasing on the minority
+
+Graphical and statistical analysis of Marital_Status variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Marital_Status
+ggplot( balanced_car_sample , aes(x=Marital_Status,fill=Marital_Status))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Marital_Status Bar chart" )+ xlab("Marital_Status")
+
+# 2- Numerical analysis for Marital_Status
+#Frequency count for the categories of Marital_Status
+table(balanced_car_sample$Marital_Status)/balanced_df_size
+```
+
+Output: enhancing the variability in the categories
+
+Graphical and statistical analysis of Gender variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Gender
+ggplot( balanced_car_sample , aes(x=Gender, fill=Gender))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Gender Bar chart" )+ xlab("Gender")
+
+# 2- Numerical analysis for Gender
+#Frequency count for the categories of Gender
+table(balanced_car_sample$Gender)/balanced_df_size
+```
+
+Output: nearly same proportion of both categories compared with the dataset before resampling
+
+Graphical and statistical analysis of Education variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Education
+ggplot( balanced_car_sample , aes(x=Education, fill=Education))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Education Levels Bar Chart" )+ xlab("Education Levels")
+
+# 2- Numerical analysis for Education
+#Frequency count for the categories of Education
+table(balanced_car_sample$Education)/balanced_df_size
+```
+
+Output: Changes on the percentages of each categories with less PhD holders
+
+Graphical and statistical analysis of Occupation variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Occupation
+ggplot( balanced_car_sample , aes(x=Occupation, fill=Occupation))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Occupation Bar chart" )+ xlab("Occupation")
+
+# 2- Numerical analysis for Occupation
+#Frequency count for the categories of Occupation
+table(balanced_car_sample$Occupation)/balanced_df_size
+```
+
+Output: Changes on the percentages of the categories (Less Doctors)
+
+Graphical and statistical analysis of Car_Use variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Car_Use
+ggplot( balanced_car_sample , aes(x=Car_Use, fill=Car_Use))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Car_Use Bar chart" )+ xlab("Car_Use")
+
+# 2- Numerical analysis for Car_Use
+#Frequency count for the categories of Car_Use
+table(balanced_car_sample$Car_Use)/balanced_df_size
+```
+
+Output: enhanced variability among the categories of the variable
+
+Graphical and statistical analysis of Car_Type variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Car_Type
+ggplot( balanced_car_sample , aes(x=Car_Type, fill=Car_Type))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Car_Type Bar chart" )+ xlab("Car_Type")
+
+# 2- Numerical analysis for Car_Type
+#Frequency count for the categories of Car_Type
+table(balanced_car_sample$Car_Type)/balanced_df_size
+```
+
+Output:Less number of SUV cars compare with dataset before resampling
+
+
+Graphical and statistical analysis of License_Revoked variable:
+```{r}
+# 1- Bar plot to display the frequencies of License_Revoked
+ggplot( balanced_car_sample , aes(x=License_Revoked, fill=License_Revoked))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("License_Revoked Bar chart" )+ xlab("License_Revoked")
+
+# 2- Numerical analysis for License_Revoked
+#Frequency count for the categories of License_Revoked
+table(balanced_car_sample$License_Revoked)/balanced_df_size
+```
+
+Output: Most of the customers didn't have a License_Revoked licence.
+
+Graphical and statistical analysis of Claim_Flag variable:
+
+```{r}
+# 1- Bar plot to display the frequencies of Claim_Flag
+
+ggplot( balanced_car_sample , aes(x=Claim_Flag, fill=Claim_Flag))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Claim_Flag Bar chart" )+ xlab("Claim_Flag")
+
+# 2- Numerical analysis for Claim_Flag
+#Frequency count for the categories of Claim_Flag
+table(balanced_car_sample$Claim_Flag)/balanced_df_size
+```
+
+Output: Most of the customers didn't claim.
+
+Graphical and statistical analysis of Urbanicity variable:
+
+```{r}
+ggplot( balanced_car_sample , aes(x=Urbanicity, fill=Urbanicity))+geom_bar(col="black")+theme_bw()+scale_y_continuous(n.breaks = 10) +ggtitle("Urbanicity Bar chart" )+ xlab("Urbanicity")
+
+#Frequency count for the categories of Urbanicity
+table(balanced_car_sample$Urbanicity)/balanced_df_size
+```
+
+Output: Reduced variability
+
+## 4.6 Repeating Bivariant Analysis after resampling
+
+### 4.6.1 Bivariant analysis of two categorical variables (including the dependent variable i.e., Claim_Flag).
+
+Categorical analysis of Single_Parent and Claim_Flag
+
+```{r}
+# mosaic plot 
+ggplot(balanced_car_sample) + geom_mosaic(aes(x = product(Claim_Flag), fill=Single_Parent)) +
+labs(title="Mosaic plot of Claim_Flag vs Single_Parent" , x="Claim_Flag", y="Single_Parent") + 
+theme_mosaic()
+```
+Output: co-parents are more in number both for claiming and not claiming for insurance than single parents.
+
+
+Contingency table of Claim_Flag and Marital_Status
+```{r}
+# Find the frequency count among categories of Claim_Flag and Single_Parent
+table(balanced_car_sample$Claim_Flag, balanced_car_sample$Single_Parent)
+```
+Output: Table shows that among claim filed and not filed customers co-parents are more in number than single parents.
+
+Statistical test to find independency between Claim_Flag and Single_Parent
+```{r}
+# Chi Square Test for independency test.
+#H0:`Claim_Flag`and `Single_Parent` are independent.
+#H1:`Claim_Flag`and `Single_Parent` are dependent.
+chisq.test(balanced_car_sample$Claim_Flag , balanced_car_sample$Single_Parent)
+```
+
+Output: p-value is very less than 0.05, so we reject $H0$.
+There is dependency between Single_Parent and Claim_Flag.
+
+Categorical analysis of Marital_Status and Claim_Flag
+
+```{r}
+# mosaic plot 
+ggplot(balanced_car_sample) + 
+  geom_mosaic(aes(x = product(Claim_Flag), fill=Marital_Status)) + 
+  labs(title="Mosaic plot of Claim_Flag vs Marital_Status" , x="Claim_Flag", y="Marital_Status" ) +
+  theme_mosaic()
+```
+
+Output: Married customers claim a file less frequent than unmarried customers, may be because married people are more careful while driving.
+
+Contingency table of Claim_Flag and Marital_Status
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Marital_Status
+table(balanced_car_sample$Claim_Flag, balanced_car_sample$Marital_Status)
+```
+
+Output: Married customers are claiming less frequently than unmarried by a small amount.
+
+Statistical test to find independency between Claim_Flag and Marital_Status.
+
+```{r}
+# Chi Square Test for independency test.
+# H0:`Claim_Flag`and `Marital_Status` are independent.
+# H1:`Claim_Flag`and `Marital_Status` are dependent.
+chisq.test(balanced_car_sample$Claim_Flag , balanced_car_sample$Marital_Status)
+```
+
+Output:p-value is significant, so we reject $H0$.
+Hence, there is dependency between Marital_Status and Claim_Flag.
+
+Graphical analysis of Claim_Flag and Gender
+
+```{r}
+# mosaic plot 
+ggplot(balanced_car_sample) +  geom_mosaic(aes(x = product(Claim_Flag), fill=Gender)) +labs(title="Mosaic plot of Claim_Flag vs Gender" , x="Claim_Flag", y="Gender" )+ theme_mosaic()
+```
+
+Output: Female customers are slightly large in number compared to male customers who file a claim.
+
+Contingency table of Claim_Flag and Gender
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Gender
+table(balanced_car_sample$Claim_Flag, balanced_car_sample$Gender)
+```
+
+Output: Female customers are claiming more compared to male customers.
+
+Statistical test to find independency between Claim_Flag and Gender.
+
+```{r}
+# Chi Square Test for independency test.
+chisq.test(balanced_car_sample$Claim_Flag , balanced_car_sample$Gender)
+```
+
+Output: p-value is less than 0.05, so we reject $H0$.
+Hence, there is association between Gender and Claim_Flag.
+
+Graphical analysis of Claim_Flag and Education
+
+```{r}
+# grouped bar plot to display the relationship  
+ggplot(balanced_car_sample,aes(x = Education,fill=Claim_Flag)) + 
+  geom_bar(position = "dodge") +  
+  ggtitle("Bar plot of Claim_Flag vs Education") +
+  theme_minimal()+
+  theme( legend.justification = "right")
+```
+
+Output: Customers with high school level Education have filed claims the most and those with PhD claimed the least preceded by Masters.However, we can see Bachelors holders are claiming more than \< High School.
+
+Contingency table for both Claim_Flag and Education.
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Education
+table(balanced_car_sample$Claim_Flag, balanced_car_sample$Education)
+```
+
+Output: Customers with high school level Education are claiming more for insurance compared to other levels of Education.
+
+Statistical test to find independency between Claim_Flag and Education.
+
+```{r}
+# Chi Square Test for independency test.
+chisq.test(balanced_car_sample$Claim_Flag , balanced_car_sample$Education)
+```
+
+Output: p-value is very less than 0.05, so we reject $H0$.
+Hence, there is association between Education and Claim_Flag.
+
+Graphical analysis of Claim_Flag and Occupation
+
+```{r}
+# grouped bar plot to display the relationship  
+ggplot(balanced_car_sample,aes(x = Occupation,fill=Claim_Flag)) + 
+  geom_bar(position = "dodge") +  
+  ggtitle("Bar plot of Claim_Flag vs Occupation") +
+  theme_minimal() + theme(legend.position = "right")+
+  theme(axis.text.x = element_text(angle=45,hjust = 1)) 
+```
+
+Output: Customers with high demanded Occupations claims very less compared to less demanded jobs except for Home_Maker that might because they stay at home (no driving) more than the other.
+
+Contingency table for both Claim_Flag and Occupation
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Occupation
+table(balanced_car_sample$Claim_Flag, balanced_car_sample$Occupation)
+```
+
+Output: Customers with Blue Collar level Occupation have filed the claims most and customers who are doctors filed the least.
+
+Statistical test to find independency between Claim_Flag and Occupation
+
+```{r}
+# Chi Square Test for independency test.
+chisq.test(balanced_car_sample$Claim_Flag , balanced_car_sample$Occupation)
+```
+
+Output:p-value is significant, so we reject $H0$, which means that Occupation and Claim_Flag are dependent variables.
+
+Graphical analysis of Claim_Flag and Car_Use
+
+```{r}
+# mosaic plot to show the relation
+ggplot(balanced_car_sample) +  geom_mosaic(aes(x = product(Claim_Flag), fill= Car_Use)) +labs(title="Mosaic plot of Claim_Flag vs Car_Use" , x="Claim_Flag", y="Car_Use" )+ theme_mosaic()
+```
+
+Output: It reveals that private car use claims the most.This suggests that individuals using their cars for personal use are more likely to file insurance claims compared to commercial ones.
+
+Contingency table for both Claim_Flag and Car_Use.
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Car_Use
+table(balanced_car_sample$Claim_Flag, balanced_car_sample$Car_Use)
+```
+
+Output:Customers with Private car have filed the claims most rather than customers with commercial ones.
+
+Statistical test to find independency between Claim_Flag and Car_Use
+
+```{r}
+# Chi Square Test for independency test.
+chisq.test(balanced_car_sample$Claim_Flag , balanced_car_sample$Car_Use)
+```
+
+Output:p-value is very less than 0.05, so we reject $H0$.
+Hence, Car_Use and Claim_Flag are dependent variables.
+
+Graphical analysis of Claim_Flag and Car_Type
+
+```{r}
+# Bar plot 
+ggplot(balanced_car_sample,aes(x = Car_Type,fill=Claim_Flag)) + 
+  geom_bar(position = "dodge") +  
+  ggtitle("Bar plot of Claim_Flag vs Car_Type") +
+  theme_minimal() + theme(legend.position = "right")
+```
+
+Output: The graph indicates that SUV and Pickup car types have the highest number of claims filed.This implies that, in comparison to other car types, these particular car types are more likely to be the subject of insurance claims.
+
+Contingency table analysis for both Claim_Flag and Car_Type
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Car_Type
+table(balanced_car_sample$Claim_Flag, balanced_car_sample$Car_Type)
+```
+
+Output:table shows that Customer who's having SUV car have filed the claims most followed by Pickup rather other types of car.
+
+Statistical test to find independency between Claim_Flag and Car_Type
+
+```{r}
+# Chi Square Test for independency test.
+chisq.test(balanced_car_sample$Claim_Flag , balanced_car_sample$Car_Type)
+```
+
+Output:p-value is very less than 0.05, so we reject $H0$.Hence, Car_Type and Claim_Flag are dependent variables.
+
+
+Graphical analysis of Claim_Flag and License_License_Revoked
+
+```{r}
+# mosaic plot 
+ggplot(balanced_car_sample) + 
+  geom_mosaic(aes(x = product(Claim_Flag), fill=License_Revoked)) + 
+  labs(title="Mosaic plot of Claim_Flag vs License_Revoked" , x="Claim_Flag", y="License_Revoked" ) +
+  theme_mosaic()
+```
+
+Output: It appears that customers who have license revoked are making claims less frequently than those who their license have never been revoked.
+
+Contingency table analysis for both Claim_Flag and License_License_Revoked.
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and License_License_Revoked
+table(balanced_car_sample$Claim_Flag, balanced_car_sample$License_Revoked)
+```
+
+Output:Here it seems that customers who License_Revoked their license are claiming less frequently than the customer who have their license.
+
+Statistical test to find independency between Claim_Flag and License_Revoked.
+
+```{r}
+# Chi Square Test for independency test.
+chisq.test(balanced_car_sample$Claim_Flag , balanced_car_sample$License_Revoked)
+```
+
+Output:p-value is very less than 0.05, so we reject $H0$.there is dependency between License_Revoked and Claim_Flag
+
+Graphical analysis of Claim_Flag and Urbanicity
+
+```{r}
+# mosaic plot 
+ggplot(balanced_car_sample) + 
+  geom_mosaic(aes(x = product(Claim_Flag), fill=Urbanicity)) + 
+  labs(title="Mosaic plot of Claim_Flag vs Urbanicity" , x="Claim_Flag", y="Urbanicity" ) +
+  theme_mosaic()
+```
+
+Output: The analysis depicts that Highly Urban/Urban residents have the largest frequency of insurance claims filed.
+This shows that individuals residing in urban areas are more likely to file insurance claims compared to rural residents.
+
+Contingency table analysis for both Claim_Flag and Urbanicity.
+
+```{r}
+# Find the frequency count among categories of Claim_Flag and Urbanicity
+table(balanced_car_sample$Claim_Flag, balanced_car_sample$Urbanicity)
+```
+
+Output: Here the table indicates that customers who live in Highly Urban/Urban are claiming more frequently as compare to rural residents.
+
+Statistical test to find independency between Claim_Flag and Urbanicity
+
+```{r}
+# Chi Square Test for independency test.
+chisq.test(balanced_car_sample$Claim_Flag , balanced_car_sample$Urbanicity)
+```
+
+Output:p-value is very less than 0.05, so we reject $H0$.Hence, Ubanicity and Claim_Flag have a dependency relationship.
+
+### 4.6.2 Biavariant analysis for continuous variables and the categorical, dependent variable (Claim_Flag)
+
+Graphical analysis of Kids_Drive and Claim_Flag
+
+```{r}
+# rows of balanced_car_sample grouped by Kids_Drive and Claim_Flag
+kids_drive_dataset <- balanced_car_sample %>% group_by(Kids_Drive,Claim_Flag) %>% 
+                      summarise(Count=n(), .groups = 'keep')
+# Check the attributes of kids_drive_dataset
+attributes(kids_drive_dataset)
+#Grouped bar plot for Kids_Drive and Claim_Flag
+ggplot(kids_drive_dataset, aes(x = Claim_Flag, y = Count, fill = Claim_Flag)) +
+  geom_bar(stat = "identity", position = "dodge") +#stat = 'identity' to correct the height 
+                                                   #of the columns according to the count 
+  facet_wrap(~ Kids_Drive, scales = "free") +      #to have each facet its own scale
+  labs(x = "Claim Flag", y = "Count", title = "Relation between Claim Flag and Kids Drive") 
+```
+
+Output:The bar graph shows that customers with zero number of kids who drive have filed the most claims this might means that those customers are Single_Parent who we found they are likely to claim more.
+We have only two observation in the sample with the maximum number of Kids_Drive and those have claimed.
+
+Statistical test to check whether there is significant difference in the mean of Kids_Drive among Claim_Flag categories
+
+```{r}
+#We define our null(H0) and alternative hypothesis(H1) as.
+#H0: Mean Kids_Drive of customers who claim = Mean Kids_Drive who do not claim.
+#H1: Mean Kids_Drive of customers who claim != Mean Kids_Drive of customers who do not claim.
+t.test(balanced_car_sample$Kids_Drive~balanced_car_sample$Claim_Flag)
+```
+
+Output: Reject H0 which means there is difference in the mean of Kids_Drive among the catgories of Claim_Flag
+
+Aggregate Kids_Drive by Claim_Flag
+
+```{r}
+#Cumulative mean Age among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Kids_Drive ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: the mean of Kids_Drive who claimed is greater than the mean of Kids_Drive who didn't claim.
+
+Graphical analysis of Claim_Flag and Age
+
+```{r}
+#Box plot for Age and Claim_Flag
+ggplot(balanced_car_sample, aes(y=Age, x=Claim_Flag,fill=Claim_Flag)) + 
+  geom_boxplot(alpha=0.8)+ theme_classic() + 
+  ggtitle("Box plot of Claim_Flag vs Age") + 
+  scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Age")
+```
+
+Output:1- Median Age of customers who claim is lower than customers who are not claiming.
+2- There are some outliers listed but they are not implausible values.
+
+Aggregate Age by Claim_Flag.
+
+```{r}
+#Cumulative mean Age among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Age ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output:Mean Age of customers who filed a claim is lower than those who did not file a claim .
+
+Statistical test to check whether there is significant difference in the mean of Age among Claim_Flag categories.
+
+```{r}
+t.test(balanced_car_sample$Age~balanced_car_sample$Claim_Flag)
+```
+
+Output: Since p-value is less than 0.05, we have grounds to reject the null hypothesis.We can see that there is a significant difference in mean Age.
+
+Graphical analysis of Claim_Flag and Kids_Home
+
+```{r}
+# Count of rows grouped by Kids_Home and Claim_Flag
+kids_home_dataset <- balanced_car_sample %>% group_by(Kids_Home,Claim_Flag) %>% 
+                     summarise(Count=n(), .groups = 'keep')
+
+#Grouped bar plot for Kids_Home and Claim_Flag
+ggplot(kids_home_dataset, aes(x = Claim_Flag, y = Count, fill = Claim_Flag)) +
+  geom_bar(stat = "identity", position = "dodge") +#stat = 'identity' to correct he height 
+                                                   #of the columns according to the count 
+  facet_wrap(~ Kids_Home, scales = "free") +      #to have each facet its own scale
+  labs(x = "Claim Flag", y = "Count", title = "Count of Claim Flag by Kids at Home") 
+```
+
+Output: Maximum claims are filed by customers with no more kids at home(1331).This information is in accordance with our expectation that if customers have no kids , then they may drive carelessly and file more claims.
+
+Statistical test to check whether there is significant difference in the mean of Kids_Home among Claim_Flag categories
+
+```{r}
+t.test(balanced_car_sample$Kids_Home~balanced_car_sample$Claim_Flag)
+```
+
+Output:p-value is too smaller than 0.05, so reject H0 which means that there is significant difference in the mean of Kids_Home among Claim_Flag categories.
+
+Aggregate Kids_Home by Claim_Flag.
+
+```{r}
+#Cumulative mean Age among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Kids_Home ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: This prove the result of the t-test and we can see difference in the mean of Kids_Home among the two categories of Claim_Flag.
+
+Graphical analysis of Claim_Flag and Year_at_Job
+
+```{r}
+#Box plot for Year_at_Job and Claim_Flag
+ggplot(balanced_car_sample, aes(y=Year_at_Job, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8) + 
+    theme_classic() + ggtitle("Box plot of Claim_Flag vs Year_at_Job") +
+    scale_y_continuous(n.breaks=5)+xlab("Claim Flag")+ylab("Years at Job")
+```
+
+Output:Median years at job of customers who claims is lower than customers who are not claiming.The outliers listed are not implausible values.
+
+Aggregate Year_at_Job by Claim_Flag
+
+```{r}
+#Cumulative mean Year_at_Job among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Year_at_Job ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: Mean years at job of customers who claim is lower same than those do not claim .
+
+Statistical test to check whether there is significant difference in the mean of Year_at_Job among Claim_Flag categories
+
+```{r}
+t.test(balanced_car_sample$Year_at_Job~balanced_car_sample$Claim_Flag)
+```
+
+Output:p-value is less than 0.05, so we reject the null hypothesis that the mean years at job is the same for both customers filed a claim and those did not.
+
+Graphical analysis of Claim_Flag and Income
+
+```{r}
+#Box plot for Income and Claim_Flag
+ggplot(balanced_car_sample, aes(y=Income, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Claim_Flag vs Income") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Income($)")
+```
+
+Output: Median Income of customers who claim is lower than customers who are not claiming.
+There are some outliers listed which are not implausible values.
+
+Statistical test to check whether there is significant difference in the mean of Income among Claim_Flag categories.
+
+```{r}
+t.test(balanced_car_sample$Income~balanced_car_sample$Claim_Flag)
+```
+
+Output: p-value is less than 0.05, so we reject the null hypothesis that the mean Income is the same among the levels of Claim_Flag.
+
+Aggregate of Income by Claim_Flag
+
+```{r}
+#Cumulative mean Income among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Income ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Income of customers who filed a claim is lower than those who did not file a claim .
+
+Graphical analysis of Home_Val and Claim_Flag
+
+```{r}
+#Box plot for Home_Val and Claim_Flag
+ggplot(balanced_car_sample, aes(y=Home_Val, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8) + 
+    theme_classic() + ggtitle("Box plot of Claim_Flag vs Home_Val")+
+    scale_y_continuous(n.breaks=20)+xlab("Claim Flag")+ylab("Home Value($)")
+```
+
+Output: Median home value of customers who claim is lower than customers who are not claiming.The outliers, which are visible, are not implausible values.
+
+Statistical test to check whether there is significant difference in the mean of Income among Claim_Flag categories.
+
+```{r}
+t.test(balanced_car_sample$Home_Val~balanced_car_sample$Claim_Flag)
+```
+
+Output: p-value is less than 0.05, so we have grounds to reject the null hypothesis that there is no difference in the mean Income.
+
+Aggregate of Home_Val by Claim_Flag
+
+```{r}
+#Cumulative mean Home_Val among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Home_Val ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: Mean home value of customers who claim is lower than those who are not claiming.
+
+Statistical test to check whether there is significant difference in the mean of Home_Val among Claim_Flag categories.
+
+```{r}
+t.test(balanced_car_sample$Home_Val~balanced_car_sample$Claim_Flag)
+```
+
+Output: p-value is less than 0.05, so we reject the null hypothesis that the mean home value is the same among the levels of Claim_Flag.
+
+Graphical analysis of Travel_Time and Claim_Flag
+
+```{r}
+#Box plot for Travel_Time and Claim_Flag
+ggplot(balanced_car_sample, aes(y=Travel_Time, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8) + 
+    theme_classic() + ggtitle("Box plot of Claim_Flag vs Travel_Time")+
+    scale_y_continuous(n.breaks=20)+xlab("Claim Flag")+ylab("Travel Time(mins)")
+```
+
+Output:Median travel time of customers who claim is higher than customers who are not claiming.
+The outliers listed are not implausible values.
+
+Aggregate of Travel_Time by Claim_Flag .
+
+```{r}
+#Cumulative mean Travel_Time among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Travel_Time ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: Mean travel time of customers who filed a claim is higher than those who did not file a claim .
+
+Statistical test to check whether there is significant difference in the mean of Travel_Time among Claim_Flag categories.
+
+```{r}
+t.test(balanced_car_sample$Travel_Time~balanced_car_sample$Claim_Flag)
+```
+
+Output:since p-value is less than 0.05, we reject the null hypothesis that the mean travel time is the same among the levels of Claim_Flag.
+
+Graphical analysis of Car_Value and Claim_Flag
+
+```{r}
+#Box plot for Car_Value and Claim_Flag
+ggplot(balanced_car_sample, aes(y=Car_Value, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Claim_Flag vs Car_Value") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Car_Value")
+```
+
+Output:Median Car_Value of customers who claim is lower than customers who are not claiming.There are some outliers listed which are not implausible values.
+
+Aggregate of Car_Value by Claim_Flag.
+
+```{r}
+#Cumulative mean Car_Value among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Car_Value ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Car_Value of customers who filed a claim is lower than those who did not file a claim .
+
+Statistical test to check whether there is significant difference in the mean of Car_Value among Claim_Flag categories.
+
+```{r}
+t.test(balanced_car_sample$Car_Value~balanced_car_sample$Claim_Flag)
+```
+
+Output: since p-value is less than 0.05, we have grounds to reject the null hypothesis that there is no difference in the mean Car_Value
+
+Graphical analysis of Time_in_Force and Claim_Flag
+
+```{r}
+#Box plot for Time_in_Force and Claim_Flag
+ggplot(balanced_car_sample, aes(y=Time_in_Force, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Claim_Flag vs Time_in_Force") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Time_in_Force(years)")
+```
+
+Output: Median Time_in_Force of customers who claim is lower than customers who are not claiming.There are some outliers listed which are not implausible values.
+
+Aggregate of Time_in_Force by Claim_Flag
+
+```{r}
+#Cumulative mean Time_in_Force among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Time_in_Force ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Time_in_Force of customers who filed a claim is a bit lower than those who did not file a claim .
+
+Statistical test to check whether there is significant difference in the mean of Time_in_Force among Claim_Flag categories.
+
+```{r}
+t.test(balanced_car_sample$Time_in_Force~balanced_car_sample$Claim_Flag)
+```
+
+Output: p-value is extremely smaller than 0.05, so we have grounds to reject the null hypothesis that there is no difference in the mean Time_in_Force
+
+Graphical analysis of Old_Claim and Claim_Flag
+
+```{r}
+#Box plot for Old_Claim and Claim_Flag
+ggplot(balanced_car_sample, aes(y=Old_Claim, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Claim_Flag vs Old_Claim") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Old_Claim($)")
+```
+
+Output: Median Old_Claim of customers who claim is more in amount than the customers who are not claiming.There are many outliers listed which are not implausible values.
+
+Aggregate of Old_Claim by Claim_Flag
+
+```{r}
+#Cumulative mean Old_Claim among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Old_Claim ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Old_Claim of customers who filed a claim is more than those who did not file a claim .
+
+Statistical test to check whether there is significant difference in the mean of Old_Claim among Claim_Flag categories
+
+```{r}
+t.test(balanced_car_sample$Old_Claim~balanced_car_sample$Claim_Flag)
+```
+
+Output: p-value is very small than 0.05, so we have grounds to reject the null hypothesis that there is no difference in the mean Old_Claim
+
+Graphical analysis of Claim_Freq and Claim_Flag
+
+```{r}
+# Count of rows grouped by Claim_Freq and Claim_Flag
+claim_Freq_dataset <- balanced_car_sample %>% group_by(Claim_Freq,Claim_Flag) %>% 
+                     summarise(Count=n(), .groups = 'keep')
+claim_Freq_dataset
+
+#Grouped bar plot for Claim_Freq and Claim_Flag
+ggplot(claim_Freq_dataset, aes(x = Claim_Flag, y = Count, fill = Claim_Flag)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ Claim_Freq, scales = "free") +      
+  labs(x = "Claim Flag", y = "Count", title = "Count of Claim Flag by Claim_Freq") 
+```
+
+Output:The bar graph shows that customers with more number of Claim_Freq have filed less claims than those with less number of Claim_Freq.
+
+Aggregate of Claim_Freq by Claim_Flag
+
+```{r}
+#Cumulative mean Old_Claim among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Claim_Freq ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Claim_Freq of customers who filed a claim is more than those who did not file a claim .
+
+Statistical test to check whether there is significant difference in the mean of Claim_Freq among Claim_Flag categories.
+
+```{r}
+t.test(balanced_car_sample$Claim_Freq~balanced_car_sample$Claim_Flag)
+```
+
+Output: p-value is very small than 0.05, so we have grounds to reject the null hypothesis that there is no difference in the mean Claim_Freq.
+
+Graphical analysis of Vehicle_Record_Points and Claim_Flag
+
+```{r}
+#Box plot to visualize Vehicle_Record_Points and Claim_Flag
+ggplot(balanced_car_sample, aes(y=Vehicle_Record_Points, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Claim_Flag vs Vehicle_Record_Points") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Vehicle_Record_Points")
+```
+
+Output: Median Vehicle_Record_Points of customers who claim is more than the those who are not claiming.
+There are many outliers listed which are not implausible values.
+
+Aggregate of Vehicle_Record_Points by Claim_Flag.
+
+```{r}
+#Cumulative mean Vehicle_Record_Points among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Vehicle_Record_Points ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: Mean Vehicle_Record_Points of customers who filed a claim is more than those who does not file a claim .
+
+Statistical test to check whether there is significant difference in the mean of Vehicle_Record_Points among Claim_Flag categories.
+
+```{r}
+t.test(balanced_car_sample$Vehicle_Record_Points~balanced_car_sample$Claim_Flag)
+```
+
+Output: p-value is very small than 0.05, so we have grounds to reject the null hypothesis that there is no difference in the mean Vehicle_Record_Points
+
+Graphical analysis of Car_Age and Claim_Flag.
+
+```{r}
+#Box plot to visualize Car_Age and Claim_Flag
+ggplot(balanced_car_sample, aes(y=Car_Age, x=Claim_Flag,fill=Claim_Flag)) + 
+    geom_boxplot(alpha=0.8)+ 
+    theme_classic() + ggtitle("Box plot of Claim_Flag vs Car_Age") + 
+    scale_y_continuous(n.breaks=10)+xlab("Claim Flag")+ylab("Car_Age")
+```
+
+Output:Median Car_Age of customers who claim is a bit less than those who are not claiming.There are many outliers listed which are not implausible values.
+
+Aggregate of Car_Age by Claim_Flag.
+
+```{r}
+#Cumulative mean Car_Age among the levels of Claim_Flag 
+aggregate(balanced_car_sample$Car_Age ~ balanced_car_sample$Claim_Flag, FUN="mean")
+```
+
+Output: Here, it seems that the mean Car_Age of the customer's car who filed claim is slightly less than those who did not.
+
+Statistical test to check whether there is significant difference in the mean of Car_Age among Claim_Flag categories.
+
+```{r}
+t.test(balanced_car_sample$Car_Age~balanced_car_sample$Claim_Flag)
+```
+
+Output: p-value is very small than 0.05, so we have grounds to reject the null hypothesis that there is no difference in the mean Car_Age
+
+
+
+## 4.7 Repeating Multivariant analysis after resampling:
+
+```{r}
+# Extract the continuous variables from the dataset.
+continuous.var.df<- subset(balanced_car_sample , select= c ("Kids_Drive", "Age", "Kids_Home", "Year_at_Job", "Income" , "Home_Val", "Travel_Time", "Car_Value" , "Time_in_Force" , "Old_Claim" , "Claim_Freq","Vehicle_Record_Points", "Car_Age"))
+
+# Check the correlation between the variables
+cors<- cor(continuous.var.df)
+cors
+
+# Numerically, visualise the matrix of correlation coefficients (at the form of a heatmap) between the variables.
+corrplot(cors, method="color", tl.cex = .70,tl.col="brown", cl.cex = .70, addCoef.col = "black", number.digits = 1, number.cex = 0.5,col = colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))(200))
+```
+
+Output: - positive correlation between Home_Val and Income, Old_Claim and Claim_Freq, Kids_Drive and Kids_Home, Income and Car_Value, Income and Car_Age, and Claim_Freq and Vehicle_Record_Points.
+Kids_Home and Age are negatively correlated.
+
+## 4.8 Unsupervised learning methods
+
+### 4.8.1 Principal Component Analysis
+
+```{r}
+str(balanced_car_sample)
+cat_vars <- c( "Single_Parent",  "Marital_Status" ,"Gender", "Education", "Occupation",  "Car_Use", "Car_Type", "License_Revoked",  "Urbanicity" )
+# Have a copy to convert the categorical to numeric
+cat_to_num_dataset <- balanced_car_sample
+# Convert to numeric
+cat_to_num_dataset[, cat_vars] <-  lapply(balanced_car_sample[,cat_vars], as.numeric)
+# Scale these variables
+cat_to_num_dataset[,cat_vars ] <- lapply(cat_to_num_dataset [, cat_vars] ,  MinMax)
+# Ensure the categorical variables are numeric
+without_target_df <- subset(cat_to_num_dataset, select = -c(Claim_Flag))
+
+final_numeric_car_df <- cbind(Claim_Flag = cat_to_num_dataset$Claim_Flag , without_target_df)
+```
+
+```{r}
+# perform PCA on the dataset
+#   note: variables are scaled before analysis so no need to be rescaled
+pc_car_insurance <- prcomp(final_numeric_car_df [ , -1 ], center = T, scale. = F)
+
+# inspect the attributes of the PCA object returned by prcomp
+attributes(pc_car_insurance)
+
+car_pca_df <- as.data.frame(pc_car_insurance$x)
+# display the first 6 rows of the data points with the transformed attribute values
+head(car_pca_df)
+######################################################################
+# 4. Visual analysis of PCA results
+# plot the explained variance per PC (Scree plot)
+#   note: this can be done using the plot function on the prcomp object
+# prepare the x-axis labels PC1 to PC22 
+PCs <- paste("PC", 1:22, sep = "")
+opar <- par(no.readonly = TRUE)
+barplot(pc_car_insurance_var, type = "b", 
+     main = "Scree Plot",
+     ylab = "Variance Explained per PC",
+      names.arg = PCs,
+     # rotate the label by 45 degree
+     las = 2)
+par(opar)
+```
+
+Below is a plot for the cumulative value of PEV of PCs.
+An 80% threshold line is used to inform the feature extraction.
+
+```{r}
+
+# calculate the proportion of explained variance (PEV) from the standard deviation values
+pc_car_insurance_var <- pc_car_insurance$sdev^2
+pc_car_insurance_var
+pc_car_insurance_PEV <- pc_car_insurance_var / sum(pc_car_insurance_var)
+pc_car_insurance_PEV
+#     according to the plot the first 8 PCs should be selected since cumulative variance at PC8 is greater than 80%. 
+opar <- par(no.readonly = TRUE)
+plot(
+  cumsum(pc_car_insurance_PEV),
+  ylim = c(0,1),
+  xlab = 'PCs',
+  ylab = 'cumulative PEV',
+  pch = 20,
+  col = 'orange'
+)
+abline(h= 0.8, col = 'red', lty = 'dashed')
+par(opar)
+```
+
+Inspection of the loadings for each PC:
+
+```{r}
+
+#   note: loadings are reported as a rotation matrix
+pc_car_insurance_loadings <- pc_car_insurance$rotation
+pc_car_insurance_loadings
+
+# plot the loadings for the PC1, PC2 as a barplot
+#   note: two vectors for colours (22 distinct colour represent the original variables) and labels are created for convenience
+opar <- par(no.readonly = TRUE)
+colvector <- colors_vector <- c("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2",
+                   "#7f7f7f", "#bcbd22", "#17becf", "#aec7e8", "#ffbb78", "#98df8a", "#ff9896",
+                   "#c5b0d5", "#c49c94", "#f7b6d2", "#c7c7c7", "#dbdb8d", "#9edae5",
+                   "#393b79", "#637939")
+
+
+labvector = c('PC1', 'PC2')
+barplot(
+  pc_car_insurance_loadings[,c(1:2)],
+  # all the rows for each PC will be drawn beside each other not stacked
+  beside = T,
+  yaxt = 'n',
+  names.arg = labvector,
+  col = colvector,
+  ylim = c(-1,1),
+  border = 'white',
+  ylab = 'Loadings'
+)
+axis(2, seq(-1,1,0.1))
+legend(
+  'bottom',
+  bty = 'n',
+  col = colvector,
+  pch = 15,
+  row.names(pc_car_insurance_loadings), 
+  ncol = 4,
+  cex = 0.6
+)
+par(opar)
+```
+
+```{r}
+
+# plot the loadings for the PC3,PC4 as a barplot
+opar <- par(no.readonly = TRUE)
+labvector = c('PC3', 'PC4')
+barplot(
+  pc_car_insurance_loadings[,c(3:4)],
+  # all the rows for each PC will be drawn beside each other not stacked
+  beside = T,
+  yaxt = 'n',
+  names.arg = labvector,
+  col = colvector,
+  ylim = c(-1,1),
+  border = 'white',
+  ylab = 'Loadings'
+)
+axis(2, seq(-1,1,0.1))
+legend(
+  'bottom',
+  bty = 'n',
+  col = colvector,
+  pch = 15,
+  row.names(pc_car_insurance_loadings), 
+  ncol = 4,
+  cex = 0.6
+)
+par(opar)
+```
+
+```{r}
+
+# plot the loadings for the PC5,PC6 as a barplot
+opar <- par(no.readonly = TRUE)
+labvector = c('PC5', 'PC6')
+barplot(
+  pc_car_insurance_loadings[,c(5,6)],
+  # all the rows for each PC will be drawn beside each other not stacked
+  beside = T,
+  yaxt = 'n',
+  names.arg = labvector,
+  col = colvector,
+  ylim = c(-1,1),
+  border = 'white',
+  ylab = 'Loadings'
+)
+axis(2, seq(-1,1,0.1))
+legend(
+  'bottom',
+  bty = 'n',
+  col = colvector,
+  pch = 15,
+  row.names(pc_car_insurance_loadings), 
+  ncol = 4,
+  cex = 0.6
+)
+par(opar)
+```
+
+```{r}
+
+# plot the loadings for the PC7,PC8 as a barplot
+opar <- par(no.readonly = TRUE)
+labvector = c('PC7', 'PC8')
+barplot(
+  pc_car_insurance_loadings[,c(7,8)],
+  # all the rows for each PC will be drawn beside each other not stacked
+  beside = T,
+  yaxt = 'n',
+  names.arg = labvector,
+  col = colvector,
+  ylim = c(-1,1),
+  border = 'white',
+  ylab = 'Loadings'
+)
+axis(2, seq(-1,1,0.1))
+legend(
+  'bottom',
+  bty = 'n',
+  col = colvector,
+  pch = 15,
+  row.names(pc_car_insurance_loadings), 
+  ncol = 4,
+  cex = 0.7
+)
+par(opar)
+```
+
+Generate a biplot for each pair of important PCs (and show them on the same pAge)
+
+```{r}
+# generate a biplot for each pair of important PCs (and show them on the same page)
+#   note: the option choices is used to select the PCs - default is 1:2
+par(plt = c(0.1, 0.9, 0.1, 0.9))
+biplot(
+  pc_car_insurance,
+  # PC1 nad PC2
+  choices = c(1,2),
+  scale = 0,
+  xlabs = rep(".", nrow(final_numeric_car_df)),
+  pch = 19,
+  cex = 0.7,
+  col = c('grey40','orange')
+)
+
+```
+
+```{r}
+# generate a biplot for each pair of important PCs (and show them on the same page)
+#   note: the option choices is used to select the PCs - default is 1:2
+par(plt = c(0.1, 0.9, 0.1, 0.9))
+biplot(
+  pc_car_insurance,
+  # PC1 nad PC14
+  choices = c(1,13),
+  scale = 0,
+  xlabs = rep(".", nrow(final_numeric_car_df)),
+  pch = 19,
+  cex = 0.8,
+  col = c('grey40','orange')
+)
+
+```
+
+Since PCA reduced the number of features in our dataset while preserving at least 80% of the variance in this dataset.
+The first eight PCs will be used as our manin dataset for modeling.
+
+```{r}
+# Select only the first 8 Pcs to represent our dataset for clustering and ML models
+main_pcs_df <- car_pca_df[, c(1:8)]
+```
+
+### 4.8.2 Cluster analysis (agglomerative hierarchical and k-means)
+
+#### a) Hierarchical clustering
+
+```{r}
+#   first generate the distance matrix with euclidean distance
+
+dist_car_insurance <- dist(main_pcs_df, method = 'euclidean')
+#   then apply complete linkage, represent the tree structure (dendogram)
+hc_car_insurance <- hclust(dist_car_insurance, method = 'complete')
+hc_car_insurance
+
+# plot the associated dendogram
+plot(hc_car_insurance, hang = -0.1)
+
+# 'cut' the dendrogram to select one partition with 2 groups
+#   note: the cutree command requires a distance cutoff h or the number k of desired groups
+hc_cut_car_insurance <- cutree(hc_car_insurance, k =2) # returns the cluster index for each data point
+plot(hc_cut_car_insurance)
+
+```
+
+#### b) k-means
+
+```{r}
+#   note: select k = 2 groups
+k_car_insurance = kmeans(main_pcs_df, 2)
+
+# get the cluster id from the kmeans object
+k_cluster_car_insurance <- k_car_insurance$cluster
+k_cluster_car_insurance
+
+```
+
+#### c) Evaluation of cluster results
+
+calculate the silhoutte score for the two cluster solutions (hirarechical and kmeans)
+
+```{r}
+# then calculate the silhouette score for the two cluster solutions
+sil_hc_car_insurance <- cluster::silhouette(hc_cut_car_insurance, dist_car_insurance)
+sil_k_insurance <- cluster::silhouette(k_cluster_car_insurance, dist_car_insurance)
+
+# plot the results of the silhouette analysis for the two cluster solutions
+opar <- par(no.readonly = TRUE)
+par(mfrow = c(2,1))
+plot(sil_hc_car_insurance, main = "Hierarchical clustering", border="grey")
+plot(sil_k_insurance,main = "Kmeans",border="grey")
+
+par(opar)
+
+```
+
+Since we found that PC1 to PC8 explain more than 80% of the variance in the dataset.
+We want to extract them from the whole PCs dataframe to be used in the machine learning models.
+
+```{r}
+# Add the target (Claim_Flag) to the the our main dataset of the PCs
+main_car_df <- cbind(Claim_Flag = final_numeric_car_df$Claim_Flag, main_pcs_df)
+#Inspect the new dataset 
+str(main_car_df)
+```
+# 5. Machine learning:
+
+## 5.1 Classification models using PCs
+
+
+### 5.1.3 Neural Network
+```{r}
+# Set seed for reproducibility
+set.seed(1999)
+
+# Calculate the number of rows in the car insurance dataset
+n_rows <- nrow(main_car_df)
+
+# Sample 70% of indices for training
+training_idx <- sample(n_rows, n_rows * 0.7)
+
+# Create training and test datasets
+training_car_insurance <- main_car_df[training_idx, ]
+test_car_insurance <- main_car_df[-training_idx, ]
+
+# Define the formula for predicting Claim_Flag
+car_insurance_formula <- reformulate(names(training_car_insurance)[names(training_car_insurance) != "Claim_Flag"], 
+                                     response = 'Claim_Flag')
+
+```
+
+###5.1.2 Neural Network training
+```{r}
+# Record start time
+start_time <- Sys.time()
+
+# Train the neural network model
+nn_model <- neuralnet(car_insurance_formula, data = training_car_insurance)
+
+# Record end time
+end_time <- Sys.time()
+
+# Calculate training time
+training_time <- end_time - start_time
+
+# Print training time
+print(training_time)
+plot(nn_model)
+
+```
+
+### 5.1.3 Neural network prediction
+
+```{r}
+
+# Record start time for prediction
+nn_pred_time1 <- Sys.time()
+
+# Make predictions on the test data
+nn_predictions <- predict(nn_model, newdata = test_car_insurance)
+
+# Extract predicted probabilities for the positive class
+#predicted_probabilities <- nn_predictions[, 2]
+
+# Convert predicted probabilities to binary predictions
+#predicted_classes <- ifelse(predicted_probabilities > 0.5, "1", "0")
+
+# Convert the class labels to factors
+#predicted_classes <- as.factor(predicted_classes)
+# Record end time for prediction
+nn_pred_time2 <- Sys.time()
+
+# Calculate prediction time
+nn_prediction_time <- nn_pred_time2 - nn_pred_time1
+
+# Print prediction time
+print(nn_prediction_time)
+
+
+# Create the confusion matrix
+confusion_matrix <- table(Actual = test_car_insurance$Claim_Flag, Predicted = predicted_classes)
+
+# Print the confusion matrix
+print(confusion_matrix)
+
+
+
+# Visualize the neural network model
+plot(nn_predictions)
+
+# Calculate accuracy from the confusion matrix
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+
+# Print accuracy
+print(accuracy)
+```
+
+### 5.1.4 Training and tuning
+
+```{r}
+# set the seed so you can get same results at any time
+set.seed(123)
+
+# Set the parameters for tuning to 10-fold CV
+tuning_parameters <- trainControl(method = 'cv', number = 10)
+
+# Time before training and tuning
+tune_nn_time1 <- Sys.time()
+
+# Train a neural network model using caret train function
+nn_car_insurance <- train(
+  car_insurance_formula,
+  data = training_car_insurance,
+  method = 'nnet',
+  trControl = tuning_parameters
+)
+
+# Time after training
+tune_nn_time2 <- Sys.time()
+
+# Time required for training
+training_time <- tune_nn_time2 - tune_nn_time1
+print(training_time)
+
+# View the trained model
+print(nn_car_insurance)
+
+
+```
+
+
+### 5.1.5 Prediction
+```{r}
+# compute prediction with the Neural network model
+# Time before prediction
+tun_nn_time1 <- Sys.time()
+
+# Predict using the neural network model
+nn_tuning_pred <- predict(nn_car_insurance, test_car_insurance[, -1])
+
+# Bind predictions with actual outcomes
+nn_tuning_prediction <- cbind(
+  actual = test_car_insurance$Claim_Flag,
+  nn_tuning_pred
+)
+
+# Time after prediction
+tun_nn_time2 <- Sys.time()
+
+# Time required for prediction
+tun_nn_time2 - tun_nn_time1
+
+# View predictions
+nn_tuning_prediction
+
+```
+### 5.1.6 Performance evaluation
+
+```{r}
+# Generate the confusion matrix
+nn_confmat <- confusionMatrix(data = nn_tuning_pred, reference = test_car_insurance$Claim_Flag, positive = "1")
+
+# View the confusion matrix
+print(nn_confmat)
+```
+
+```{r}
+# Create a data frame with the probability scores for the prediction of "1" for the neural network model
+nn_model_prob <- data.frame(nn = nn_tuning_pred)
+
+# Create a data frame with TRUE for actual values equal to "1"
+actual_nn_label <- data.frame(nn = test_car_insurance$Claim_Flag == "1")
+
+# Generate ROC prediction object
+ROC_pred_nn <- prediction(nn_model_prob, actual_nn_label)
+
+# Compute true positive and false positive rates
+ROC_perf_nn <- performance(ROC_pred_nn, "tpr", "fpr")
+
+# Plot the ROC curve for the neural network model
+plot(
+  ROC_perf_nn,
+  col = "green",  # Adjust color as needed
+  main = "ROC Curve - Neural Network",  # Adjust title as needed
+  xlab = "False Positive Rate",
+  ylab = "True Positive Rate"
+)
+abline(a = 0, b = 1, lty = 2, col = 'red')
+
+```
+
