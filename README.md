@@ -2,6 +2,12 @@
 
 This project aims to analyze car insurance claim data to predict claims and gain insights from the dataset.
 
+
+## Dataset
+The dataset used for this project can be found on Kaggle:  
+[Car Insurance Claims Analysis Dataset](https://www.kaggle.com/code/warazubairkhan/car-insurrance-claims-analysis)
+
+
 ## Files in this Project:
 - `car_insurance_claim.csv`: The dataset used for analysis.
 - `Copy_of_Untitled0.ipynb`: A Jupyter notebook with the analysis and model implementation.
